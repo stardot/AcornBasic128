@@ -74,3 +74,9 @@ Note: This version (1.11) is later than the commonly available version
 
 This is a 1-byte change to code in INSTR, presumably fixing a rare bug
 as INSTR is not obviously broken in 1.10.
+
+Acknowledgements:
+=================
+
+Many thanks to Paul Fellows (ex Acornsoft) for discovering these
+long-lost sources and making them available to the Acorn community.
