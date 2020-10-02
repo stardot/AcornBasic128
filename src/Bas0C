@@ -1,0 +1,849 @@
+        TTL     > Bas0C - factor and lots of functions
+
+
+ADC     JSR INTFAC
+        LDX IACCL
+        LDAIM &80
+        JSR OSBYTE
+        TXA
+        JMP AYACC
+
+NOT     JSR INTFAC
+        LDXIM &03
+NOTLOP  LDAAX IACC
+        EORIM &FF
+        STAAX IACC
+        DEX
+        BPL NOTLOP
+        LDAIM &40
+        RTS
+
+POS     JSR VPOS
+        STX IACCL
+        RTS
+
+VPOS    LDAIM &86
+        JSR OSBYTE
+        TYA
+        JMP SINSTK
+
+LOG     JSR LN
+        LDYIM RPLN10
+        BNE CX
+
+RAD     JSR FLTFAC
+        LDYIM FPIs18
+CX      LDAIM :MSB: FPIs18
+        STY ArgP
+        STA ArgP+1
+        LDAIM 0
+        STA ArgP+2
+        JSR FMUL
+        LDAIM &FF
+        RTS
+
+DEG     JSR FLTFAC
+        LDYIM F180sP
+        BNE CX
+
+PI      JSR ASINAA
+        INC FACCX
+        TAY
+        RTS
+
+USR     JSR INTFAC
+        JSR USER
+        STA IACCL
+        STX IACCM
+        STY IACCN
+        PHP
+        PLA
+        STA IACCH
+        CLD
+        LDAIM &40
+        RTS
+
+EVAL    ROUT
+        JSR FACTOR
+        BNE EVALE
+        INC CLEN
+        LDY CLEN
+        LDAIM &0D
+        STAAY STRACC-1
+        GENAD Stracc
+        STX Work
+        STY Work+1
+        LDYIM &FF
+        STY MODE
+        INY
+        JSR MatceV      ; tokenise stracc
+        JSR PHSTR       ; probably pushes more than it needs to,
+        LDA AELINE      ; if anything HAS been tokenised.
+        PHA
+        LDA AELINE+1
+        PHA
+        LDA AECUR
+        PHA
+        LDA UpDown
+        PHA
+        LDAIM &FF
+        STA UpDown      ; move upstairs to Stack
+        LDY AESTKP
+        LDX AESTKP+1
+        INY
+        STY AELINE
+        BNE #01
+        INX
+01      STX AELINE+1
+        LDYIM 0
+        STY AECUR
+        JSR EXPR        ; do EVAL
+        JSR POPSTX
+VALOUT  PLA             ; N.B. This is here for VAL exit
+        STA UpDown      ; Take care when reinstating EVAL!
+        PLA
+        STA AECUR
+        PLA
+        STA AELINE+1
+        PLA
+        STA AELINE
+        LDA TYPE
+        RTS
+
+EVALE   JMP LETM
+
+VAL     JSR FACTOR
+        BNE EVALE
+VALSTR  LDY CLEN
+        LDAIM &00
+        STAAY STRACC
+        LDA AELINE
+        PHA
+        LDA AELINE+1
+        PHA
+        LDA AECUR
+        PHA
+        LDA UpDOwn
+        PHA
+        LDAIM &00
+        STA AECUR
+        STA UpDown
+;        LDAIM STRACC (of course stracc=0)
+        STA AELINE
+        LDAIM :MSB: STRACC
+        STA AELINE+1
+        JSR AESPAC
+        CMPIM "-"
+        BEQ VALMIN
+        CMPIM "+"
+        BNE VALNUB
+        JSR AESPAC
+VALNUB  DEC AECUR
+        JSR FRDD
+        JMP VALTOG
+
+VALMIN  JSR AESPAC
+        DEC AECUR
+        JSR FRDD
+        BCC VALTOG
+        JSR VALCMP
+VALTOG  STA TYPE
+        JMP VALOUT
+
+INT     JSR FACTOR
+        BEQ FACTE
+        BPL INTX
+        LDA FACCS
+        PHP
+        JSR FFIX
+        PLP
+        BPL INTF
+        LDA FWRKMA
+        ORA FWRKMB
+        ORA FWRKMC
+        ORA FWRKMD
+        BEQ INTF
+        JSR FNEARP
+INTF    JSR IFIX+3
+        LDAIM &40
+INTX    RTS
+
+ASC     JSR FACTOR
+        BNE FACTE
+        LDA CLEN
+        BEQ TRUE
+        LDA STRACC
+        JMP SINSTK
+
+INKEY   JSR INKEA
+        TYA
+        BNE TRUE
+        TXA
+        JMP AYACC
+
+FACTE   JMP LETM
+
+EOF     JSR CHANN
+        TAX
+        LDAIM &7F
+        JSR OSBYTE
+        TXA
+        BEQ TRUTWO
+TRUE    LDXIM &FF
+TRUTWO  STX IACCL
+        STX IACCM
+        STX IACCN
+        STX IACCH
+SGNINT  LDAIM &40
+        RTS
+
+FALSE   LDXIM &00
+        BEQ TRUTWO
+SGNFLT  JSR FTST
+        BEQ FALSE
+        BPL SGNPOS
+        BMI TRUE
+SGN     JSR FACTOR
+        BEQ FACTE
+        BMI SGNFLT
+        LDA IACCH
+        ORA IACCN
+        ORA IACCM
+        ORA IACCL
+        BEQ SGNINT
+        LDA IACCH
+        BMI TRUE
+SGNPOS  LDAIM &01
+SGNSIN  JMP SINSTK
+
+POINT   JSR INEXPR
+        JSR PHACC
+        JSR COMEAT
+        JSR BRA
+        JSR INTEGB
+        LDA IACCL
+        PHA
+        LDX IACCM
+        JSR POPACC
+        STX IACCH
+        PLA
+        STA IACCN
+        LDXIM IACCL
+        LDAIM &09
+        JSR OSWORD
+        LDA IACCL+4
+        BMI TRUE
+        BPL SGNSIN
+
+INSTR   JSR EXPR
+        BNE FACTE
+        CPXIM ","
+        BNE INSTRE
+        INC AECUR
+        JSR PHSTR
+        JSR EXPR
+        BNE FACTE
+        LDAIM &01
+        STA IACCL
+        INC AECUR
+        CPXIM ")"
+        BEQ INSTRG
+        CPXIM ","
+        BEQ INSTRH
+INSTRE  JMP COMERR
+
+INSTRH  JSR PHSTR
+        JSR BRA
+        JSR INTEGB
+        JSR POPSTR
+INSTRG  LDYIM &00
+        LDX IACCL
+        BNE INSTRF
+        LDXIM &01
+INSTRF  STX IACCL
+        TXA
+        DEX
+        STX IACCH
+        CLC
+        ADC AESTKP
+        STA WORK
+        TYA
+        ADC AESTKP+1
+        STA WORK+1
+        JSR PlaFs
+        SEC
+        SBC IACCH
+        BCC INSTRY
+        SBC CLEN
+        BCC INSTRY
+        ADCIM &00
+        STA IACCM
+        JSR POPSTX
+INSTRL  LDYIM &00
+        LDX CLEN
+        BEQ INSTRO
+INSTRM  JSR LWUpIY   ; fix it for Exeter
+        CMPAY STRACC
+        BNE INSTRN
+        INY
+        DEX
+        BNE INSTRM
+INSTRO  LDA IACCL
+INSTRP  JMP SINSTK
+
+INSTRY  JSR POPSTX
+INSTRZ  LDAIM &00
+        BEQ INSTRP
+INSTRN  INC IACCL
+        DEC IACCM
+        BEQ INSTRZ
+        INC WORK
+        BNE INSTRL
+        INC WORK+1
+        BNE INSTRL
+ABSE    JMP LETM
+
+ABS     JSR FACTOR
+        BEQ ABSE
+        BMI FABS
+ABSCOM  BIT IACCH
+        BMI COMPNO
+        BPL COMPDN
+FABS    JSR FTST
+        BPL FNEGX
+        BMI NEGACC
+FNEG    JSR FTST
+        BEQ FNEGX
+NEGACC  LDA FACCS
+        EORIM &80
+        STA FACCS
+FNEGX   LDAIM &FF
+        RTS
+
+UNMINS  JSR UNPLUS
+VALCMP  BEQ ABSE
+        BMI FNEG
+COMPNO  SEC
+        LDAIM &00
+        TAY
+        SBC IACCL
+        STA IACCL
+        TYA
+        SBC IACCM
+        STA IACCM
+        TYA
+        SBC IACCN
+        STA IACCN
+        TYA
+        SBC IACCH
+        STA IACCH
+COMPDN  LDAIM &40
+        RTS
+
+DATAST  JSR AESPAC
+        CMPIM &22 ; quote
+        BEQ QSTR
+        LDXIM &00
+DATASL  JSR LAeLnIY
+        STAAX STRACC
+        INY
+        INX
+        CMPIM &0D
+        BEQ QSTRF
+        CMPIM ","
+        BNE DATASL
+QSTRF   DEY
+QSTRE   DEX
+        STX CLEN
+        STY AECUR
+        LDAIM &00
+        RTS
+
+QSTR    LDXIM &00
+QSTRP   INY
+QSTRL   JSR LAeLnIY
+        CMPIM &0D
+        BEQ QSTREG
+        STAAX STRACC
+        INY
+        INX
+        CMPIM &22 ; quote
+        BNE QSTRL
+        JSR LAeLnIY
+        CMPIM &22 ; quote
+        BEQ QSTRP
+        BNE QSTRE
+QSTREG  JMP NSTNG
+
+FACTOR  ROUT
+        LDY AECUR
+;        JSR LAeLnIY
+        LDA UpDown
+        BEQ #01
+        TYA
+        CLC
+        ADC AeLine
+        STA PPtr
+        LDA AeLine+1
+        ADCIM 0
+        TAY
+        LDAAY   OurRam
+        STAZ    &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA PPtr+1
+        LDYIM 0
+        LDAIY PPtr
+        LDY AeCur
+        JMP #02
+
+01      LDAIY AeLine
+02      INC AECUR
+        CMPIM " " 
+        BEQ FACTOR
+        CMPIM "-"
+        BNE #03
+        JMP UNMINS
+
+03      CMPIM &22 ; quote
+        BEQ QSTR
+        CMPIM "+"
+        BNE DOPLUS
+UNPLUS  JSR AESPAC
+DOPLUS  CMPIM TOPENU
+        BCC TSTVAR
+        CMPIM TEOF+1
+        BCS FACERR
+        JMP DISPATCH
+
+TSTVAR  CMPIM "?"
+        BCS TSTVB
+        CMPIM "."
+        BCS TSTN
+        CMPIM "&"
+        BEQ HEXIN
+        CMPIM "("
+        BEQ BRA
+TSTVB   DEC AECUR
+        JSR LVCONT
+        BEQ ERRFAC
+        JMP VARIND
+
+TSTN    JSR FRDD
+        BCC FACERR
+        RTS
+
+ERRFAC  LDA BYTESM
+        ANDIM &02
+        BNE FACERR
+        BCS FACERR
+        STX AECUR
+        LDA PC
+        LDY PC+1
+        JMP AYACC
+
+FACERR  BRK
+        = &1A
+        = "No such variable"
+
+BKTERR  BRK
+        = &1B
+        = "Missing )"
+
+HEXDED  BRK
+        = &1C
+        = "Bad HEX"
+        BRK
+
+BRA     JSR EXPR
+        INC AECUR
+        CPXIM ")"
+        BNE BKTERR
+        TAY
+        RTS
+
+HEXIN   JSR FALSE
+        INY
+HEXIP   JSR LAeLnIY
+        CMPIM &30
+        BCC HEXEND
+        CMPIM &3A
+        BCC OKHEX
+        SBCIM &37
+        CMPIM &0A
+        BCC HEXEND
+        CMPIM &10
+        BCS HEXEND
+OKHEX   ASLA
+        ASLA
+        ASLA
+        ASLA
+        LDXIM &03
+INLOOP  ASLA
+        ROL IACCL
+        ROL IACCM
+        ROL IACCN
+        ROL IACCH
+        DEX
+        BPL INLOOP
+        INY
+        BNE HEXIP
+HEXEND  TXA
+        BPL HEXDED
+        STY AECUR
+        LDAIM &40
+        RTS
+
+TO      INY
+        JSR LAeLnIY
+        CMPIM "P"
+        BNE FACERR
+        INC AECUR
+        LDA TOP
+        LDY TOP+1
+        STA     IACCL           ; Common to TOP and LOMEM rhs
+        STY     IACCM
+        LDAIM   1
+        STA     IACCN
+        LDAIM   0
+        STA IaccH
+        LDAIM &40
+        RTS
+
+RPAGE   LDY TXTP                ; PAGE is &01xx00
+        STY IACCM
+        LDAIM &01
+        STA IACCN
+        LDAIM 0
+        STA IACCL
+        STA IaccH
+        LDAIM &40
+        RTS
+       
+LENB    JMP LETM
+
+LEN     JSR FACTOR
+        BNE LENB
+        LDA CLEN
+SINSTK  LDYIM &00
+AYACC   STA IACCL
+        STY IACCM
+        LDAIM &00
+        STA IACCN
+        STA IACCH
+        LDAIM &40
+        RTS
+
+COUNT   LDA TALLY
+        BCC SINSTK
+
+RLOMEM  LDA LOMEM
+        LDY LOMEM+1
+        STA IACCL
+        STY IACCM
+        LDAIM 1     ; Lomem+2
+        STA IACCN
+        LDAIM 0
+        STA IaccH            
+        LDAIM &40
+        RTS
+
+
+RHIMEM  LDA HIMEM               ; HIMEM is &0nxx00
+        LDY HIMEM+1
+        STA IACCL
+        STY IACCM
+        LDA HIMEM+2
+        STA IACCN
+        LDAIM 0
+        STA IaccH
+        LDAIM &40
+        RTS
+
+ERL     LDY HILINO
+        LDA LOLINO
+        BCC AYACC   ; always?
+
+ERR     LDYIM &00
+        LDA BrkMs
+        BCC AYACC
+
+RTIME   LDXIM IACCL
+        LDYIM &00
+        LDAIM &01
+        JSR OSWORD
+        LDAIM &40
+        RTS
+
+RNDb    INC AECUR
+        JSR BRA
+        JSR INTEGB
+        LDA IACCH
+        BMI RNDSET
+        ORA IACCN
+        ORA IACCM
+        BNE RNDbB
+        LDA IACCL
+        BEQ FRND
+        CMPIM &01
+        BEQ FRNDAA
+RNDbB   JSR IFLT
+        JSR PHFACC
+        JSR FRNDAA
+        JSR POPSET
+        JSR IFMUL
+        JSR FNRM
+        JSR IFIX
+        JSR INCACC
+        LDAIM &40
+        RTS
+
+RNDSET  LDXIM SEED
+        JSR ACCTOM
+        LDAIM &40
+        STA SEED+4
+        RTS
+
+RND     LDY AECUR
+        JSR LAeLnIY
+        CMPIM "("
+        BEQ RNDb
+        JSR FRNDAB
+        LDXIM SEED
+MTOACC  LDAAX &0000
+        STA IACCL
+        LDAAX &0001
+        STA IACCM
+        LDAAX &0002
+        STA IACCN
+        LDAAX &0003
+        STA IACCH
+        LDAIM &40
+        RTS
+
+FRNDAA  JSR FRNDAB
+FRND    LDXIM &00
+        STX FACCS
+        STX FACCXH
+        STX FACCMG
+        LDAIM &80
+        STA FACCX
+MTOFACC LDAAX SEED
+        STAAX FACCMA
+        INX
+        CPXIM &04
+        BNE MTOFAC
+        JSR NRMTDY
+        LDAIM &FF
+        RTS
+
+FRNDAB  LDYIM &04
+RTOP    ROR SEED+4
+        LDA SEED+3
+        PHA
+        RORA
+        STA SEED+4
+        LDA SEED+2
+        TAX
+        ASLA
+        ASLA
+        ASLA
+        ASLA
+        STA SEED+3
+        LDA SEED+1
+        STA SEED+2
+        LSRA
+        LSRA
+        LSRA
+        LSRA
+        ORA SEED+3
+        EOR SEED+4
+        STX SEED+3
+        LDX SEED
+        STX SEED+1
+        STA SEED
+        PLA
+        STA SEED+4
+        DEY
+        BNE RTOP
+        RTS
+
+INKEA   JSR INTFAC
+        LDAIM &81
+        LDX IACCL
+        LDY IACCM
+        JMP OSBYTE
+
+GET     JSR OSRDCH
+        JMP SINSTK
+
+GETd    JSR OSRDCH
+SINSTR  STA STRACC
+        LDAIM &01
+        STA CLEN
+        LDAIM &00
+        RTS
+
+LEFTd   JSR EXPR
+        BNE LEFTE
+        CPXIM ","
+        BNE MIDc
+        INC AECUR
+        JSR PHSTR
+        JSR BRA
+        JSR INTEGB
+        JSR POPSTR
+        LDA IACCL
+        CMP CLEN
+        BCS LEFTX
+        STA CLEN
+LEFTX   LDAIM &00
+        RTS
+
+RIGHTd  JSR EXPR
+        BNE LEFTE
+        CPXIM ","
+        BNE MIDc
+        INC AECUR
+        JSR PHSTR
+        JSR BRA
+        JSR INTEGB
+        JSR POPSTR
+        LDA CLEN
+        SEC
+        SBC IACCL
+        BCC RALL
+        BEQ RIGHTX
+        TAX
+        LDA IACCL
+        STA CLEN
+        BEQ RIGHTX
+        LDYIM &00
+RGHLOP  LDAAX STRACC
+        STAAY STRACC
+        INX
+        INY
+        DEC IACCL
+        BNE RGHLOP
+RALL    LDAIM &00
+RIGHTX  RTS
+
+INKEd   JSR INKEA
+        TXA
+        CPYIM &00
+        BEQ SINSTR
+RNUL    LDAIM &00
+        STA CLEN
+        RTS
+
+LEFTE   JMP LETM
+
+MIDc    JMP COMERR
+
+MIDd    JSR EXPR
+        BNE LEFTE
+        CPXIM ","
+        BNE MIDc
+        JSR PHSTR
+        INC AECUR
+        JSR INEXPR
+        LDA IACCL
+        PHA
+        LDAIM &FF
+        STA IACCL
+        INC AECUR
+        CPXIM ")"
+        BEQ MIDTWO
+        CPXIM ","
+        BNE MIDc
+        JSR BRA
+        JSR INTEGB
+MIDTWO  JSR POPSTR
+        PLA
+        TAY
+        CLC
+        BEQ MIDLB
+        SBC CLEN
+        BCS RNUL
+        DEY
+        TYA
+MIDLB   STA IACCN
+        TAX
+        LDYIM &00
+        LDA CLEN
+        SEC
+        SBC IACCN
+        CMP IACCL
+        BCS MIDLA
+        STA IACCL
+MIDLA   LDA IACCL
+        BEQ RNUL
+MIDLP   LDAAX STRACC
+        STAAY STRACC
+        INY
+        INX
+        CPY IACCL
+        BNE MIDLP
+        STY CLEN
+        LDAIM &00
+        RTS
+
+STRd    JSR AESPAC
+        LDYIM &FF
+        CMPIM "~"
+        BEQ STRdt
+        LDYIM &00
+        DEC AECUR
+STRdt   TYA
+        PHA
+        JSR FACTOR
+        BEQ STRE
+        TAY
+        PLA
+        STA PRINTF
+        LDA VARL+3
+        BNE STRdM
+        STA WORK
+        JSR FCONA
+        LDAIM &00
+        RTS
+
+STRdM   JSR FCON
+        LDAIM &00
+        RTS
+
+STRE    JMP LETM
+
+STRNd   JSR INEXPR
+        JSR PHACC
+        JSR COMEAT
+        JSR BRA
+        BNE STRE
+        JSR POPACC
+        LDY CLEN
+        BEQ STRNX
+        LDA IACCL
+        BEQ STRNY
+        DEC IACCL
+        BEQ STRNX
+STRNL   LDXIM &00
+STRNLP  LDAAX STRACC
+        STAAY STRACC
+        INX
+        INY
+        BEQ STRNOV
+        CPX CLEN
+        BCC STRNLP
+        DEC IACCL
+        BNE STRNL
+        STY CLEN
+STRNX   LDAIM &00
+        RTS
+
+STRNY   STA CLEN
+        RTS
+
+STRNOV  JMP STROVR
+
+        
+        LNK     Bas0D

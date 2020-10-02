@@ -1,0 +1,814 @@
+      TTL > Bas04 Match text subrs stmt
+
+INTOK  PHA   ; insert token in A into line
+       CLC
+       TYA
+       ADC Work
+       STA Work+2
+       LDYIM &00
+       TYA
+       ADC Work+1
+       STA Work+3
+       PLA
+       STAIY Work
+INTOKA INY   ; replace
+       LDAIY Work+2
+       STAIY Work
+       CMPIM &0D
+       BNE INTOKA  ; move rest of line down
+       RTS
+
+CONSTQ ANDIM &0F ; check if a constant
+       STA Work+6
+       STY Work+7    ; Y was zero
+CONSTR INY
+       LDAIY Work
+       JSR NUMBCP
+       BCC CONSTX
+       ANDIM &0F
+       PHA
+       LDX Work+7
+       LDA Work+6
+       ASLA
+       ROL Work+7
+       BMI CONSTY
+       ASLA
+       ROL Work+7
+       BMI CONSTY
+       ADC Work+6
+       STA Work+6
+       TXA
+       ADC Work+7
+       ASL Work+6
+       ROLA
+       BMI CONSTY
+       BCS CONSTY
+       STA Work+7
+       PLA
+       ADC Work+6
+       STA Work+6
+       BCC CONSTR
+       INC Work+7
+       BPL CONSTR
+       PHA
+CONSTY PLA     ;  >32767 so cant be
+       LDYIM &00
+       SEC
+       RTS
+
+CONSTX DEY
+       LDAIM TCONST
+       JSR INTOK
+       LDA Work
+       ADCIM &02      ; carry set at end of intok
+       STA Work+2
+       LDA Work+1
+       ADCIM &00
+       STA Work+3
+CONSTL LDAIY Work
+       STAIY Work+2
+       DEY
+       BNE CONSTL     ; y<>0 initially since at least tconst cr
+       LDYIM &03
+CONSTI LDA Work+7
+       ORAIM &40
+       JSR SWrkIY
+       DEY
+       LDA Work+6
+       ANDIM &3F
+       ORAIM &40
+       JSR SWrkIY
+       DEY
+       LDA Work+6
+       ANDIM &C0
+       STA Work+6
+       LDA Work+7
+       ANDIM &C0
+       LSRA
+       LSRA
+       ORA Work+6
+       LSRA
+       LSRA
+       EORIM &54
+       JSR SWrkIY
+       JSR NextCh
+       JSR NextCh
+       JSR NextCh
+       LDYIM &00
+WordCN CLC
+       RTS
+
+WordCQ CMPIM &7B   ; check if character in A is Wordc
+       BCS WordCN
+       CMPIM "_"
+       BCS WordCY
+       CMPIM &5B
+       BCS WordCN
+       CMPIM "A"
+       BCS WordCY
+NUMBCP CMPIM &3A
+       BCS WordCN
+       CMPIM "0"           ; bcs Wordcy;bcc Wordcn reduced somewhat!
+WordCY RTS
+
+NUMBCQ CMPIM "."
+       BNE NUMBCP
+       RTS
+
+GETWRK JSR LWrkIY
+NextCh INC Work
+       BNE RELRTS
+       INC Work+1
+RELRTS RTS
+
+GETWK2 JSR NextCh
+       JMP LWrkIY
+
+Match  LDYIM &00
+       STY MODE
+MATCEV STY CONSTA
+MatchA LDAIY Work
+       CMPIM &0D
+       BEQ RELRTS         ; if ch='cr' end
+       CMPIM " "
+       BNE BMatch         ; if ch=' ' then
+MatchB JSR NextCh   ; NextCh
+       BNE MatchA         ; goto Matcha
+
+BMatch CMPIM "&"
+       BNE CMatch         ; if ch="&"" "then
+MatchC JSR GETWK2   ; repeat NextCh
+       JSR NUMBCP         ; until ch<"0"" "or ch>"9"" "and ch <"A"" "or ch>"F""
+       BCS MatchC
+       CMPIM "A"
+       BCC MatchA
+       CMPIM "G"
+       BCC MatchC
+       BCS MatchA        ; Matcha
+CMatch CMPIM """"
+       BNE DMatch        ; if ch="""" "then
+MatchD JSR GETWK2  ; repeat NextCh
+       CMPIM """"          ; until ch="c"r" "or ch=""""
+       BEQ MatchB
+       CMPIM &0D
+       BNE MatchD
+       RTS
+
+DMatch CMPIM ":"
+       BNE MatchE        ; if ch=":""
+       STY MODE
+       STY CONSTA        ; mode:=left;constant:=false
+       BEQ MatchB        ; NextCh;Matcha
+MatchE CMPIM ","
+       BEQ MatchB        ; if ch=","" "then NextCh;Matcha
+       CMPIM "*"
+       BNE FMatch        ; if ch="*""
+       LDA MODE
+       BNE YMatch        ; and mode=left
+       RTS               ; end
+
+FMatch CMPIM "."
+       BEQ MatchZ
+       JSR NUMBCP
+       BCC GMatch        ; if ch>="0"" "and ch<="9""
+       LDX CONSTA
+       BEQ MatchZ        ; if constant=true
+       JSR CONSTQ
+       BCC MatchF
+MatchZ LDAIY Work  ; not found numeric:- while numbcq
+       JSR NUMBCQ
+       BCC MatchY
+       JSR NextCh        ; do NextCh
+       JMP MatchZ
+
+MatchY LDXIM &FF
+       STX MODE
+       STY CONSTA
+       JMP MatchA
+
+MatchW JSR WordCQ
+       BCC YMatch
+MatchV LDYIM &00
+MatchG LDAIY Work  ; not found:- while Wordcq
+       JSR WordCQ
+       BCC MatchY
+       JSR NextCh        ; do NextCh
+       JMP MatchG
+
+GMatch CMPIM "A"    ; lookupWord (optimised for none present Words)
+       BCS HMatch
+YMatch LDXIM &FF
+       STX MODE          ; mode:=right
+       STY CONSTA        ; const:=false
+MatchF JMP MatchB
+HMatch CMPIM "X"
+       BCS MatchW
+       LDXIM TOKENS
+       STX Work+2
+       LDXIM :MSB: TOKENS
+       STX Work+3      ; list start
+IMatch CMPIY Work+2  ; special check on first char
+       BCC MatchG
+       BNE JMatch
+KMatch INY
+       LDAIY Work+2
+       BMI LMatch
+       CMPIY Work
+       BEQ KMatch
+       LDAIY Work
+       CMPIM "."
+       BEQ ABBREV
+JMatch INY
+       LDAIY Work+2
+       BPL JMatch
+       CMPIM TWIDTH         ; last token in list
+       BNE MMatch
+       BCS MatchV
+ABBREV INY
+ABBREA LDAIY Work+2
+       BMI LMatch
+       INC Work+2
+       BNE ABBREA
+       INC Work+3
+       BNE ABBREA
+
+MMatch SEC
+       INY
+       TYA
+       ADC Work+2
+       STA Work+2
+       BCC NMatch
+       INC Work+3
+NMatch LDYIM &00
+       LDAIY Work
+       JMP IMatch
+
+LMatch TAX             ; token held in x for now
+       INY
+       LDAIY Work+2
+       STA Work+6         ; job to Work+6
+       DEY
+       LSRA
+       BCC OMatch           ; if job and 1
+       LDAIY Work
+       JSR WordCQ           ; if ch+1 = Wordc
+       BCS MatchV
+OMatch TXA
+       BIT Work+6
+       BVC WMatch           ; if job and 64
+       LDX MODE
+       BNE WMatch           ; and mode=left
+       CLC
+       ADCIM TPTR2 -&8F
+WMatch DEY
+       JSR INTOK
+       LDYIM &00
+       LDXIM &FF
+       LDA Work+6
+       LSRA
+       LSRA
+       BCC QMatch           ; if job and 2
+       STX MODE             ; mode:=right
+       STY CONSTA           ; constant:=false
+QMatch LSRA
+       BCC RMatch           ; if job and 4
+       STY MODE             ; mode:=left
+       STY CONSTA           ; constant:=false
+RMatch LSRA
+       BCC TMatch           ; if job and 8
+       PHA
+       INY
+SMatch LDAIY Work     ; while ch+1=Wordc
+       JSR WordCQ
+       BCC XMatch
+       JSR NextCh           ; NextCh
+       JMP SMatch
+
+XMatch DEY
+       PLA
+TMatch LSRA
+       BCC UMatch
+       STX CONSTA
+UMatch LSRA
+       BCS AESPAR           ; if job and 32 end
+       JMP MatchB
+
+AESPAC LDY AECUR      ; get next character from the aeline,aecur
+       INC AECUR
+       JSR LAeLnIY
+       CMPIM " "
+       BEQ AESPAC
+AESPAR RTS
+
+SPACES LDY CURSOR     ; get next character from the line, cursor
+       INC CURSOR  
+       JSR LLinIY 
+       CMPIM " "
+       BEQ SPACES
+COMRTS RTS
+
+COMEAT JSR AESPAC     ; check for a , in aeline and give error if none
+       CMPIM ","
+       BEQ COMRTS
+COMERR BRK
+       = &05
+       = "Missing ,"
+       BRK
+
+ ;   old command does ?&3001=0 finds new end of text and frees
+
+OLD    JSR DONE
+       LDA TXTP
+       JSR SamCvt
+       STA Work+1
+       LDAIM &00
+       STA Work
+       STAIY Work
+       JSR ENDER
+       BNE FSASET
+
+;   end statement finds end of text and stops
+
+END    JSR DONE
+       JSR ENDER
+       BNE CLRSTK
+
+;   stop statement prints that it has stopped
+
+STOP   JSR DONE
+       BRK
+       BRK
+       = TSTOP
+       BRK
+
+;   new command clears text and frees
+
+NEW JSR DONE
+
+FORMAT 
+       LDA TXTP          ; clear text by 0d ff at start
+       JSR SamCvt
+       STA TOP+1
+       LDYIM &00
+       STY TOP           ; TOP := PAGE + 2, null program
+       STY TRFLAG
+
+       LDAIM &0D
+       STAIY TOP        ; SamCvt called
+
+       LDAIM &FF
+       INY
+       STAIY TOP        ; SamCvt called already
+
+       INY
+       STY TOP          
+       LDA TXTP
+       STA TOP+1        ; PMF replaces the hi byte of TOP
+
+FSASET JSR SETFSA
+CLRSTK LDYIM :MSB: BUFFER
+       STY LINE+1
+       LDYIM BUFFER
+       STY LINE
+       LDAIM BASERR
+       STA ERRORL
+       LDAIM :MSB: BASERR
+       STA ERRORH
+       LDAIM 0
+       STA ErrUd
+       STA UpDown     ; clicommands are always downstairs
+       LDAIM ">"      ; de prompt!
+       JSR BUFF
+
+RUNTHG ROUT
+       LDAIM BASERR  ; set up to run something
+       STA ERRORL
+       LDAIM :MSB: BASERR
+       STA ERRORH
+       LDXIM 0
+       STX ErrUd
+       DEX
+       STX BYTESM
+       STX CONSTA
+       TXS
+       JSR SETVAR
+       TAY                  ; A zero from setvar
+       LDA LINE
+       STA Work
+       LDA LINE+1
+       STA Work+1
+       STY MODE
+       STY CURSOR
+       BIT UpDown
+       BMI DC
+       JSR MatchA
+       JSR SPTSTN
+       BCC DC
+       JSR INSRT
+       JMP FSASET
+
+DC     JSR    SPACES          ; direct mode command
+       CMPIM  TAUTO
+       BCS    #01
+       JMP    LETST
+
+01     JMP Dispatch
+
+LEAVE  JMP    CLRSTK
+
+ASS    JMP    SASM
+
+FNRET  TSX
+       CPXIM  &FC
+       BCS    FNERR
+       LDA    &01FF
+       CMPIM  TFN
+       BNE    FNERR
+       JSR    AEEXPR
+       JMP    FDONE
+
+FNERR  BRK
+       = &07
+       = "No "
+       = TFN
+       BRK
+
+OTSTMT LDY CURSOR
+       DEY
+       JSR LLinIY
+       CMPIM "="
+       BEQ FNRET
+       CMPIM "*"
+       BEQ DOS
+       CMPIM "["
+       BEQ ASS
+       BNE SUNK
+
+;   resultis statement
+;   call operating system statement
+
+DOS    ROUT
+       JSR CLYADP
+       LDYIM 0
+01     JSR LLinIy
+       STAAY Stracc
+       INY
+       CMPIM &0D
+       BNE #01
+       GENAD Stracc
+       JSR OSCLI
+
+DATA   ; data statement ignored
+DEF    ; def statement ignored
+REM    ROUT
+       LDAIM &0D
+       LDY CURSOR
+       DEY
+       STA PPtr2+1
+01     INY
+       JSR LLinIY
+       CMP PPtr2+1
+       BNE #01
+ENDEDL CMPIM TELSE
+       BEQ REM
+       LDA UpDown
+       BEQ LEAVE
+       JSR LINO
+       BNE STMT
+
+SUNK   DEC CURSOR
+DONEXT JSR DONE
+NXT    LDYIM &00
+       JSR LLinIY
+       CMPIM ":"
+       BNE ENDEDL
+STMT   LDY CURSOR  ; statement execution
+;       JSR LLinIY
+       LDA UpDown
+       BEQ #04
+       TYA
+       CLC
+       ADC Line
+       STA PPtr
+       LDA Line+1
+       ADCIM 0
+       TAY
+       LDAAY   OurRam
+       STAZ    &F4
+       STA     &FE30
+       LDAAY   DAT
+       STA PPtr+1
+       LDYIM 0
+       LDAIY PPtr
+       LDY Cursor
+       JMP #05
+
+04     LDAIY Line
+05     INC CURSOR
+       CMPIM " "
+       BEQ STMT
+       CMPIM TPTR2      ; lowest poly
+       BCC LETST
+
+DISPATCH
+      TAX
+      LDAAX ADTABL -&8E
+      STA Work
+      LDAAX ADTABH -&8E
+      STA Work+1
+      JMI Work
+
+LETST LDX LINE
+      STX AELINE
+      LDX LINE+1
+      STX AELINE+1
+      STY AECUR
+      JSR LVCONT
+      BNE GOTLT
+      BCC #02
+      JMP OTSTMT
+
+02    STX AECUR
+      JSR EQEAT
+      JSR CREATE
+      LDXIM 5
+      CPX IaccN
+      BEQ   #03
+      DEX
+03    JSR CREAX
+      DEC CURSOR
+      LDAIM &FF
+      STA LVud  ; if we made it, it's up
+
+;   let statement
+
+LET   JSR CRAELV
+      BEQ NOLET
+GOTLT BCC LETED
+      JSR PHACC
+      JSR EQEXPR
+      LDA TYPE
+      BNE LETM
+      JSR STSTOR
+      JMP NXT
+
+LETED LDA LVud
+      STA IaccH
+      JSR PHACC    ; assign to number
+      JSR EQEXPR
+      LDA TYPE
+      BEQ LETM
+      JSR Store
+      JMP NXT
+
+NOLET JMP STDED
+
+LETM  BRK
+      = &06
+      = "Type mismatch"
+      BRK
+
+STSTOR JSR POPACC  ; subr to store string where told - always up?
+STSTRE ROUT
+      LDA IaccN
+      CMPIM &80
+      BNE #01
+      JMP NSTR
+
+01    LDYIM &02
+      JSR LilUp    ; load from (IaccL),Y
+      CMP CLEN
+      BCS #04        ; old mlen >= to new len
+      LDA FSA
+      STA IaccN
+      LDA FSA+1
+      STA IaccH
+      LDA CLEN
+      CMPIM &08
+      BCC #02        ; if <8 characters then use this as mlen
+      ADCIM &07         ; else add 8
+      BCC #02
+      LDAIM &FF         ; but max is 255
+02    PHA
+      TAX
+      JSR LilUp         ; is new space contiguous to old?
+      STA PPtr2+1
+      LDYIM &00
+      JSR LilUp
+      CLC
+      ADC PPtr2+1
+      EOR FSA
+      BNE #03
+      INY
+      PHP       ; carry from clen+addrLo
+      JSR LilUp
+      PLP
+      ADCIM 0   ; calc end of string
+      EOR FSA+1
+      BNE #03
+      STA IaccH        ; new space is, so reduce amount needed
+      STA IaccN        ; contiguous is spec by full 0
+      INY
+      JSR LilUp
+      STA PPtr2+1
+      TXA
+      SEC
+      SBC PPtr2+1
+      TAX
+03    TXA
+      CLC
+      ADC FSA
+      TAY
+      LDA FSA+1
+      ADCIM &00
+      TAX
+      CPY AESTKP      ; are we hitting our heads on the roof?
+      SBC AESTKP+1
+      LDAIM 1         ; Fsa+2
+      SBC AeStkP+2
+      BCS ALLOCR
+      STY FSA
+      STX FSA+1
+      PLA
+      LDYIM &02
+      JSR SILUp    ; new mlen
+      DEY
+      LDA IaccH
+      ORA IaccN
+      BEQ #04      ; we were contiguous
+      LDA IaccH
+      JSR SILUp
+      DEY
+      LDA IaccN
+      JSR SILUp
+04    LDYIM &03
+      LDA CLEN
+      JSR SILUp
+      LDA CLen
+      BEQ #06
+
+      LDYIM 0
+      JSR LilUp
+      STA IaccN
+      INY
+      JSR LilUp
+      TAY
+      LDAAY DAT
+      CMPIM &BF
+      BEQ #07   ; awkward
+      STA IaccH
+      LDAAY OurRam
+      STA &F4
+      STA &FE30
+      LDYIM 0
+05    LDAAY STRACC
+      STAIY IaccN
+      INY
+      CPY CLEN
+      BNE #05
+
+06    RTS
+
+07    LDYIM 0
+08    STY MoveTY
+      TYA
+      CLC
+      ADC IaccN
+      STA PPtr
+      LDY MoveTY
+      LDAAY STRACC
+      JSR #09
+      INY
+      CPY Clen
+      BNE #08
+      RTS
+
+09    PHA
+      LDA IaccH
+      JMP Scom
+
+
+ALLOCR BRK
+       BRK
+       = "No room"
+       BRK
+
+NSTR  ROUT
+      LDA UpDown
+      PHA
+      LDA IaccH
+      STA UpDown
+      JSR OSSTRT
+      CPYIM &00
+      BEQ #01
+02    LDAAY STRACC
+      JSR SILIY
+      DEY
+      BNE #02
+      LDA STRACC
+01    JSR SILIY
+      PLA
+      STA UpDown
+      RTS
+
+STORST ROUT     ; only called from Bas0D, where Up is set.
+       LDA Work+2
+       CMPIM &80
+       BEQ #01
+       BCC #02
+       LDYIM &00         ; string vars
+       JSR PlaFs
+       TAX
+       BEQ #03
+       JSR LWUpIY
+       SEC
+       SBCIM &01
+       STA Work+2
+       INY
+       PHP
+       JSR LWUpIY
+       PLP
+       SBCIM &00
+       STA Work+3
+04     JSR PlaFs
+       STA PPtr2+1
+;        STY MoveTY - done by PlaFs
+       TYA
+       CLC
+       ADC Work+2
+       STA PPtr
+       JSR #11
+       INY
+       DEX
+       BNE #04
+03                  ; LDAI AESTKP
+       LDA AeStkP
+       STA PPtr
+       LDA AeStkP+1
+       JSR SamCvt
+       STA PPtr+1
+       LDYIM 0
+       LDAIY PPtr
+       LDYIM 3
+       JSR SWUpIY
+       JMP POPSTX
+
+01     LDA UpDown
+       PHA
+       LDA Work+3
+       STA UpDown
+       LDYIM 0   ; do $ indirect
+       JSR PlaFs
+       TAX
+       BEQ #07
+06     INY
+       JSR PlaFs
+       DEY
+       JSR SWrkIY
+       INY
+       DEX
+       BNE #06
+07     LDAIM &0D
+       JSR SWrkIY
+       JSR POPSTX
+       PLA
+       STA UpDown
+       RTS
+
+02     LDA UpDown
+       PHA
+       LDA Work+3
+       STA UpDown     
+       LDYIM &00       ; variables
+       JSR PlaFs
+       JSR SWrkIY
+       LDYIM &04
+       LDA Work+2
+       BEQ #10
+       LDYIM &01
+       JSR PlaFs
+       JSR SWrkIY
+       INY
+       JSR PlaFs
+       JSR SWrkIY
+       INY
+       JSR PlaFs
+       JSR SWrkIY
+       INY
+       CPY Work+2
+       BCS #10
+       JSR PlaFs
+       JSR SWrkIY
+       INY
+10     PLA               ; fudge integers back
+       STA UpDown
+       TYA
+       CLC
+       JMP POPN
+
+11     LDA PPtr2+1
+       PHA
+       LDA Work+3
+       JMP Scom
+
+       LNK Bas05

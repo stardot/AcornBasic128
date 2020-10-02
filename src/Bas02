@@ -1,0 +1,530 @@
+
+          TTL > Bas02     lexical tokens and name table
+
+     ; The table contains lexical tokens and an action byte
+     ;  6 - polymorphic
+     ;  5 - give up completely
+     ;  4 - constant/list of constants may follow
+     ;  3 - while byte<>wordc skip
+     ;  2 - transfer to l mode
+     ;  1 - transfer to r mode
+     ;  0 - ignore if next character is wordc
+
+     ; Every token is recognizable at the start of any word
+
+TAND * &0080              ; expression binary operators
+TDIV * TAND +01
+TEOR * TDIV +01
+TMOD * TEOR +01
+TOR * TMOD +01
+
+TERROR * TOR +01          ; miscellaneous words
+TLINE * TERROR +01
+TOFF * TLINE +01
+TSTEP * TOFF +01
+TSPC * TSTEP +01
+TTAB * TSPC +01
+TELSE * TTAB +01
+TTHEN * TELSE +01
+
+TCONST * TTHEN +01        ; (8D)
+
+TOPENU * TCONST +01
+TPTR * TCONST +02         ; polymorphics as functions
+TPAGE * TPTR +01
+TTIME * TPAGE +01
+TLOMM * TTIME +01
+THIMM * TLOMM +01
+
+TABS * THIMM +01         ; expression class of unary operators
+TACS * TABS +01
+TADC * TACS +01
+TASC * TADC +01
+TASN * TASC +01
+TATN * TASN +01
+TBGET * TATN +01
+TCOS * TBGET +01
+TCOUNT * TCOS +01
+TDEG * TCOUNT +01
+TERL * TDEG +01
+TERR * TERL +01
+TEVAL * TERR +01
+TEXP * TEVAL +01
+TEXT * TEXP +01
+TFALSE * TEXT +01
+TFN * TFALSE +01
+TGET * TFN +01
+TINKEY * TGET +01
+TINSTR * TINKEY +01
+TINT * TINSTR +01
+TLEN * TINT +01
+TLN * TLEN +01
+TLOG * TLN +01
+TNOT * TLOG +01
+TOPENI * TNOT +01
+TOPENO * TOPENI +01
+TPI * TOPENO +01
+TPOINT * TPI +01
+TPOS * TPOINT +01
+TRAD * TPOS +01
+TRND * TRAD +01
+TSGN * TRND +01
+TSIN * TSGN +01
+TSQR * TSIN +01
+TTAN * TSQR +01
+TTO * TTAN +01
+TTRUE * TTO +01
+TUSR * TTRUE +01
+TVAL * TUSR +01
+TVPOS * TVAL +01
+TCHRd * TVPOS +01            ; string expression class of unary operators
+TGETd * TCHRd +01
+TINKEd * TGETd +01
+TLEFTd * TINKEd +01
+TMIDd * TLEFTd +01
+TRIGHTd * TMIDd +01
+TSTRd * TRIGHTd +01
+TSTRNd * TSTRd +01
+TEOF * TSTRNd +01
+
+TAUTO * TEOF +01            ; commands
+TDELET * TAUTO +01
+TLOAD * TDELET +01
+TLIST * TLOAD +01
+TNEW * TLIST +01
+TOLD * TNEW +01
+TRENUM * TOLD +01
+TSAVE * TRENUM +01
+
+TPTR2 * TSAVE +02          ; polymorphics again
+TPAGE2 * TPTR2 +01
+TTIME2 * TPAGE2 +01
+TLOMM2 * TTIME2 +01
+THIMM2 * TLOMM2 +01
+
+TBEEP * THIMM2 +01         ; statements
+TBPUT * TBEEP +01
+TCALL * TBPUT +01
+TCHAIN * TCALL +01
+TCLEAR * TCHAIN +01
+TCLOSE * TCLEAR +01
+TCLG * TCLOSE +01
+TCLS * TCLG +01
+TDATA * TCLS +01
+TDEF * TDATA +01
+TDIM * TDEF +01
+TDRAW * TDIM +01
+TEND * TDRAW +01
+TENDPR * TEND +01
+TENVEL * TENDPR +01
+TFOR * TENVEL +01
+TGOSUB * TFOR +01
+TGOTO * TGOSUB +01
+TGRAPH * TGOTO +01
+TIF * TGRAPH +01
+TINPUT * TIF +01
+TLET * TINPUT +01
+TLOCAL * TLET +01
+TMODE * TLOCAL +01
+TMOVE * TMODE +01
+TNEXT * TMOVE +01
+TON * TNEXT +01
+TVDU * TON +01
+TPLOT * TVDU +01
+TPRINT * TPLOT +01
+TPROC * TPRINT +01
+TREAD * TPROC +01
+TREM * TREAD +01
+TREPEAT * TREM +01
+TREPORT * TREPEAT +01
+TRESTOR * TREPORT +01
+TRETURN * TRESTOR +01
+TRUN * TRETURN +01
+TSTOP * TRUN +01
+TTEXT * TSTOP +01
+TTRACE * TTEXT +01
+TUNTIL * TTRACE +01
+TWIDTH * TUNTIL +01
+TOSCL * TWIDTH +01           ; this must be <=&FF (!)
+
+TOKENS = "AND"                  ; this table MUST be alphabetic in first char
+     = TAND
+     = &00
+     = "ABS"
+     = TABS
+     = &00
+     = "ACS"
+     = TACS
+     = &00
+     = "ADVAL"
+     = TADC
+     = &00
+     = "ASC"
+     = TASC
+     = &00
+     = "ASN"
+     = TASN
+     = &00
+     = "ATN"
+     = TATN
+     = &00
+     = "AUTO"
+     = TAUTO
+     = &10
+     = "BGET"
+     = TBGET
+     = &01
+     = "BPUT"
+     = TBPUT
+     = &03
+     = "COLOUR"
+     = TTEXT
+     = &02
+     = "CALL"
+     = TCALL
+     = &02
+     = "CHAIN"
+     = TCHAIN
+     = &02
+     = "CHR$"
+     = TCHRd
+     = &00
+     = "CLEAR"
+     = TCLEAR
+     = &01
+     = "CLOSE"
+     = TCLOSE
+     = &03
+     = "CLG"
+     = TCLG
+     = &01
+     = "CLS"
+     = TCLS
+     = &01
+     = "COS"
+     = TCOS
+     = &00
+     = "COUNT"
+     = TCOUNT
+     = &01
+     = "DATA"
+     = TDATA
+     = &20
+     = "DEG"
+     = TDEG
+     = &00
+     = "DEF"
+     = TDEF
+     = &00
+     = "DELETE"
+     = TDELET
+     = &10
+     = "DIV"
+     = TDIV
+     = &00
+     = "DIM"
+     = TDIM
+     = &02
+     = "DRAW"
+     = TDRAW
+     = &02
+     = "ENDPROC"
+     = TENDPR
+     = &01
+     = "END"
+     = TEND
+     = &01
+     = "ENVELOPE"
+     = TENVEL
+     = &02
+     = "ELSE"
+     = TELSE
+     = &14
+     = "EVAL"
+     = TEVAL
+     = &00
+     = "ERL"
+     = TERL
+     = &01
+     = "ERROR"
+     = TERROR
+     = &04
+     = "EOF"
+     = TEOF
+     = &01
+     = "EOR"
+     = TEOR
+     = &00
+     = "ERR"
+     = TERR
+     = &01
+     = "EXP"
+     = TEXP
+     = &00
+     = "EXT"
+     = TEXT
+     = &01
+     = "FOR"
+     = TFOR
+     = &02
+     = "FALSE"
+     = TFALSE
+     = &01
+     = "FN"
+     = TFN
+     = &08
+     = "GOTO"
+     = TGOTO
+     = &12
+     = "GET$"
+     = TGETd
+     = &00
+     = "GET"
+     = TGET
+     = &00
+     = "GOSUB"
+     = TGOSUB
+     = &12
+     = "GCOL"
+     = TGRAPH
+     = &02
+     = "HIMEM"
+     = THIMM
+     = &43
+     = "INPUT"
+     = TINPUT
+     = &02
+     = "IF"
+     = TIF
+     = &02
+     = "INKEY$"
+     = TINKEd
+     = &00
+     = "INKEY"
+     = TINKEY
+     = &00
+     = "INT"
+     = TINT
+     = &00
+     = "INSTR("
+     = TINSTR
+     = &00
+     = "LIST"
+     = TLIST
+     = &10
+     = "LINE"
+     = TLINE
+     = &00
+     = "LOAD"
+     = TLOAD
+     = &02
+     = "LOMEM"
+     = TLOMM
+     = &43
+     = "LOCAL"
+     = TLOCAL
+     = &02
+     = "LEFT$("
+     = TLEFTd
+     = &00
+     = "LEN"
+     = TLEN
+     = &00
+     = "LET"
+     = TLET
+     = &04
+     = "LOG"
+     = TLOG
+     = &00
+     = "LN"
+     = TLN
+     = &00
+     = "MID$("
+     = TMIDd
+     = &00
+     = "MODE"
+     = TMODE
+     = &02
+     = "MOD"
+     = TMOD
+     = &00
+     = "MOVE"
+     = TMOVE
+     = &02
+     = "NEXT"
+     = TNEXT
+     = &02
+     = "NEW"
+     = TNEW
+     = &01
+     = "NOT"
+     = TNOT
+     = &00
+     = "OLD"
+     = TOLD
+     = &01
+     = "ON"
+     = TON
+     = &02
+     = "OFF"
+     = TOFF
+     = &00
+     = "OR"
+     = TOR
+     = &00
+     = "OPENIN"
+     = TOPENU
+     = &00
+     = "OPENOUT"
+     = TOPENO
+     = &00
+     = "OPENUP"
+     = TOPENI
+     = &00
+     = "OSCLI"
+     = TOSCL
+     = &02
+     = "PRINT"
+     = TPRINT
+     = &02
+     = "PAGE"
+     = TPAGE
+     = &43
+     = "PTR"
+     = TPTR
+     = &43
+     = "PI"
+     = TPI
+     = &01
+     = "PLOT"
+     = TPLOT
+     = &02
+     = "POINT("
+     = TPOINT
+     = &00
+     = "PROC"
+     = TPROC
+     = &0A
+     = "POS"
+     = TPOS
+     = &01
+     = "RETURN"
+     = TRETURN
+     = &01
+     = "REPEAT"
+     = TREPEAT
+     = &00
+     = "REPORT"
+     = TREPORT
+     = &01
+     = "READ"
+     = TREAD
+     = &02
+     = "REM"
+     = TREM
+     = &20
+     = "RUN"
+     = TRUN
+     = &01
+     = "RAD"
+     = TRAD
+     = &00
+     = "RESTORE"
+     = TRESTORE
+     = &12
+     = "RIGHT$("
+     = TRIGHTd
+     = &00
+     = "RND"
+     = TRND
+     = &01
+     = "RENUMBER"
+     = TRENUM
+     = &10
+     = "STEP"
+     = TSTEP
+     = &00
+     = "SAVE"
+     = TSAVE
+     = &02
+     = "SGN"
+     = TSGN
+     = &00
+     = "SIN"
+     = TSIN
+     = &00
+     = "SQR"
+     = TSQR
+     = &00
+     = "SPC"
+     = TSPC
+     = &00
+     = "STR$"
+     = TSTRd
+     = &00
+     = "STRING$("
+     = TSTRNd
+     = &00
+     = "SOUND"
+     = TBEEP
+     = &02
+     = "STOP"
+     = TSTOP
+     = &01
+     = "TAN"
+     = TTAN
+     = &00
+     = "THEN"
+     = TTHEN
+     = &14
+     = "TO"
+     = TTO
+     = &00
+     = "TAB("
+     = TTAB
+     = &00
+     = "TRACE"
+     = TTRACE
+     = &12
+     = "TIME"
+     = TTIME
+     = &43
+     = "TRUE"
+     = TTRUE
+     = &01
+     = "UNTIL"
+     = TUNTIL
+     = &02
+     = "USR"
+     = TUSR
+     = &00
+     = "VDU"
+     = TVDU
+     = &02
+     = "VAL"
+     = TVAL
+     = &00
+     = "VPOS"
+     = TVPOS
+     = &01
+     = "WIDTH"
+     = TWIDTH
+     = &02
+
+     = "PAGE"                          ; dratted polymorphics again
+     = TPAGE2
+     = &00
+     = "PTR"
+     = TPTR2
+     = &00
+     = "TIME"
+     = TTIME2
+     = &00
+     = "LOMEM"
+     = TLOMM2
+     = &00
+     = "HIMEM"
+     = THIMM2
+     = &00
+
+     LNK Bas03

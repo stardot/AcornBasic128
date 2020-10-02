@@ -1,0 +1,56 @@
+          TTL > Bas128   - loader for big fing
+
+          ORG &400
+OSCLI  * &FFF7
+OSBYTE * &FFF4
+OsWrch * &FFEE
+OsArgs * &FFDA
+
+ptr    * &AE
+
+        MACRO
+$l      GENAD   $a
+$l      LDXIM   :LSB: $a
+        LDYIM   :MSB: $a
+        MEND
+
+Loader  ROUT
+        LDAIM &EA    ; read Toob
+        LDXIM 0
+        LDYIM &FF
+        JSR   OsByte
+        TXA          ; FF if Tube, 0 if not
+        BEQ   #02
+        BRK
+        =     0,"Please turn off your second processor"
+        BRK   ; The only good way to kill a Tube!
+
+02      LDAIM 114    ; force shadow
+        LDXIM 0
+        JSR   OsByte
+
+        LDAIM &84    ; if there's room, don't clear screen.
+        JSR   OsByte
+        CPYIM &80
+        BEQ   #A01    ; shadow detected
+        LDAIM 22
+        JSR   OsWrch
+        LDAIM &87
+        JSR   OsByte
+        TYA
+        JSR   OsWrch
+
+        LDAIM &84
+        JSR   OsByte
+        CPYIM &80   ; check shadow exists
+        BEQ   #A01
+        BRK
+        =     0
+        =     "No shadow screen"
+        BRK
+
+01      GENAD boogie
+        JMP   OsCli
+
+Boogie  = "/BasObj",13
+        END

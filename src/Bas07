@@ -1,0 +1,1003 @@
+          TTL     > Bas07 prn and expression analyser
+
+
+POSITE  ROUT
+        LDAIM 0
+        BEQ #01
+
+NPRN    LDAIM 5  ; print number to chout 5 size in decimal
+01      STA PRINTS
+        LDXIM 4
+NUMLOP  LDAIM 0
+        STAAX Work+8
+        SEC
+NUMLP   LDA IaccL
+        SBCAX VALL
+        TAY
+        LDA IaccM
+        SBCAX VALM
+        BCC OUTNUM
+        STA IaccM
+        STY IaccL
+        INCAX Work+8
+        BNE NUMLP
+OUTNUM  DEX
+        BPL NUMLOP
+        LDXIM 5
+LZB     DEX
+        BEQ LASTZ
+        LDAAX Work+8
+        BEQ LZB
+LASTZ   STX Work
+        LDA PRINTS
+        BEQ PLUME
+        SBC Work         ; carry clear
+        BEQ PLUME
+        TAX
+        JSR LISTPL
+        LDX Work
+PLUME   LDAAX Work+8
+        ORAIM "0"
+        JSR CHOUT
+        DEX
+        BPL PLUME
+        RTS
+
+VALL    = &01       ; table of numeric values
+        = &0A
+        = &64
+        = &E8
+        = &10
+
+FndLno  ROUT
+        LDAIM  0    ; find line number in Iacc
+        STA    Work+6
+        LDY    TXTP
+        STY    PPtr
+02      LDAAY  DAT
+        CMPIM  &BF
+        BEQ    #01     ; awkward sod
+        STA    Work+7
+        LDAAY  OurRam
+        STA    &F4
+        STA    &FE30
+
+SIGHT   LDYIM  1    
+        LDAIY  Work+6
+        CMP    IaccM   ; high byte
+        BCS    LOOK      
+LOOKR   LDYIM  3     ; go to next line by adding length
+        LDAIY  Work+6
+        ADC    Work+6
+        STA    Work+6
+        BCC    SIGHT
+        INC    PPtr
+        LDY    PPtr
+        BNE    #02      ; always
+
+LOOK    BNE    Past    ; gone Past it
+        INY            ; check low byte
+        LDAIY  Work+6
+        CMP    IaccL
+        BCC    LOOKR   ; less so carry on
+07      BNE    Past    ; not found
+        LDAIM  2       ; found it
+        ADC    Work+6
+        STA    Work+6
+        BCC    #03
+        INC    PPtr
+        CLC
+03      LDA    PPtr
+        STA    Work+7
+Past    LDYIM  2       ; CC=found CS=notfound
+        RTS
+
+01      LDAIM  1    
+        JSR    #04
+        CMP    IaccM   ; high byte
+        BCS    #05      
+06      LDAIM  3     ; go to next line by adding length
+        JSR    #04
+        ADC    Work+6
+        STA    Work+6
+        BCC    #01
+        INC    PPtr
+        LDY    PPtr
+        BNE    #02      ; always
+
+05      BNE    Past     ; gone Past it
+        LDAIM  2        ; check low byte
+        JSR    #04
+        CMP    IaccL
+        BCC    #06      ; less so carry on
+        BCS    #07
+
+04      CLC             ; get byte from upstairs at &10000 + A + (Work+6)
+        ADC     Work+6
+        STA     PPtr2
+        LDA     PPtr
+        ADCIM   0
+        TAY
+        LDAAY   OurRam
+        STAZ    &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA     PPtr2+1
+        LDYIM   0
+        LDAIY   PPtr2
+        RTS
+
+ZDIVOR  BRK
+        = &12
+        = "Division by zero"
+
+VALM    = 0
+        = 0
+        = 0
+        = 3
+        = &27
+
+DIVOP   TAY      ;  divide with remainder
+        JSR INTEGB
+        LDA IaccH
+        PHA
+        JSR ABSCOM
+        JSR PHPOW
+        STX TYPE
+        TAY
+        JSR INTEGB
+        PLA
+        STA Work+1
+        EOR IaccH
+        STA Work
+        JSR ABSCOM
+        LDXIM Work+2
+        JSR POPX
+        STY Work+6
+        STY Work+7
+        STY Work+8
+        STY Work+9
+        LDA IaccH
+        ORA IaccL
+        ORA IaccM
+        ORA IaccN
+        BEQ ZDIVOR
+        LDYIM &20
+DIVJUS  DEY
+        BEQ DIVRET
+        ASL Work+2
+        ROL Work+3
+        ROL Work+4
+        ROL Work+5
+        BPL DIVJUS
+DIVER   ROL Work+2
+        ROL Work+3
+        ROL Work+4
+        ROL Work+5
+        ROL Work+6
+        ROL Work+7
+        ROL Work+8
+        ROL Work+9
+        SEC
+        LDA Work+6
+        SBC IaccL
+        PHA
+        LDA Work+7
+        SBC IaccM
+        PHA
+        LDA Work+8
+        SBC IaccN
+        TAX
+        LDA Work+9
+        SBC IaccH
+        BCC NOSUB
+        STA Work+9
+        STX Work+8
+        PLA
+        STA Work+7
+        PLA
+        STA Work+6
+        BCS NOSUB+2
+NOSUB   PLA
+        PLA
+        DEY
+        BNE DIVER
+DIVRET  RTS
+
+
+FCOMPS  STX TYPE
+        JSR POPACC
+        JSR PHFACC
+        JSR IFLT
+        JSR FTOW
+        JSR POPSET
+        JSR FLDA
+        JMP FcmpA
+
+FCOMPR  JSR PHFACC
+        JSR ADDER
+        STX TYPE
+        TAY
+        JSR FLOATI
+        JSR POPSET
+Fcmp    JSR FLDW
+FcmpA   LDX TYPE
+        LDYIM 0
+        LDA FwrkS
+        ANDIM &80
+        STA FwrkS
+        LDA FACCS
+        ANDIM &80
+        CMP FwrkS
+        BNE FcmpZ
+        LDA FwrkX
+        CMP FACCX
+        BNE FcmpZZ
+        LDA FwrkMA
+        CMP FACCMA
+        BNE FcmpZZ
+        LDA FwrkMB
+        CMP FACCMB
+        BNE FcmpZZ
+        LDA FwrkMC
+        CMP FACCMC
+        BNE FcmpZZ
+        LDA FwrkMD
+        CMP FACCMD
+        BNE FcmpZZ
+FcmpZ   RTS
+
+FcmpZZ  RORA
+        EOR FwrkS
+        ROLA
+        LDAIM 1
+        RTS
+
+COMPRE  JMP LETM
+
+COMPR   TXA        ; string or numeric compare
+Comprp1 BEQ STNCMP
+        BMI FCOMPR
+        JSR PHACC
+        JSR ADDER
+        TAY
+        BEQ COMPRE
+        BMI FCOMPS
+        LDA IaccH
+        EORIM &80
+        STA IaccH
+        JSR PulIwrk
+        LDA IwrkL
+        SEC
+        SBC IaccL
+        STA IaccL
+        LDA IwrkM
+        SBC IaccM
+        STA IaccM
+        LDA IwrkN
+        SBC IaccN
+        STA IaccN
+        LDA IwrkH
+        LDYIM 0
+        EORIM &80
+        SBC IaccH
+        ORA IaccL
+        ORA IaccM
+        ORA IaccN
+        RTS
+
+STNCMP  JSR PHSTR
+        JSR ADDER
+        TAY
+        BNE COMPRE
+        STX Work
+        LDX CLEN
+        LDYIM 0
+        JSR PlaFs        ; other clen
+        STA Work+2
+        CMP CLEN
+        BCS COMPRF
+        TAX
+COMPRF  STX Work+3
+        LDYIM 0
+COMPRG  CPY Work+3
+        BEQ COMPRH
+        INY
+        JSR PlaFs
+        CMPAY STRACC -01
+        BEQ COMPRG
+        BNE COMPRI
+COMPRH  LDA Work+2
+        CMP CLEN
+COMPRI  PHP
+        JSR POPSTX           ; zeroes Y
+        LDX Work
+        PLP
+        RTS
+
+
+AEEXPR  LDA LINE
+        STA AELINE
+        LDA LINE+1
+        STA AELINE+1
+        LDA CURSOR
+        STA AECUR
+
+; EXPR reads a rhs.
+;  If status is eq then it returned a string
+;  If status is neq and plus then it returned a word
+;  If status is neq and minus then it returned an fp
+
+EXPR    ROUT
+        JSR ANDER
+01      CPXIM TOR
+        BEQ OR
+        CPXIM TEOR
+        BEQ EOR
+        DEC AECUR
+        TAY
+        STA TYPE
+        RTS
+
+OR      JSR PHANDR
+        TAY
+        JSR INTEGB
+        JSR PulIWrk
+        LDYIM 3 ; not allowed to crap on X
+03      LDAAY IWrk
+        ORAAY IaccL
+        STAAY IaccL
+        DEY
+        BPL #03
+02      ; JSR POPINC - done by PulIWrk
+        LDAIM &40
+        BNE #01
+
+EOR     JSR PHANDR
+        TAY
+        JSR INTEGB
+        JSR PulIWrk
+        LDYIM 3
+04      LDAAY Iwrk
+        EORAY IaccL
+        STAAY IaccL
+        DEY
+        BPL #04
+        BMI #02
+
+PHANDR  ROUT
+        TAY
+        JSR INTEGB
+        JSR PHACC
+ANDER   JSR RELATE
+01      CPXIM TAND
+        BEQ AND
+        RTS
+
+AND     TAY
+        JSR INTEGB
+        JSR PHACC
+        JSR RELATE
+        TAY
+        JSR INTEGB
+        JSR PulIWrk
+        LDYIM 3
+02      LDAAY IWrk
+        ANDAY IaccL
+        STAAY IaccL
+        DEY
+        BPL #02
+        LDAIM &40
+        BNE #01
+
+RELATE  ROUT
+        JSR ADDER
+        CPXIM "?"
+        BCS #03
+        CPXIM "<"
+        BCS #01
+03      RTS
+
+01      BEQ #02
+        CPXIM ">"
+        BEQ #06
+        TAX
+        JSR COMPRp1
+        BNE FAIL
+PASS    DEY
+FAIL    STY IaccL
+        STY IaccM
+        STY IaccN
+        STY IaccH
+        LDAIM &40  ; type integer
+        RTS
+
+02      TAX
+        LDY AECUR
+        JSR LAeLnIY
+        CMPIM "="
+        BEQ #04
+        CMPIM ">"
+        BEQ #05
+        JSR COMPR
+        BCC PASS
+        BCS FAIL
+
+04      INC AECUR       ; Lt or Eq
+        JSR COMPR
+        BEQ PASS
+        BCC PASS
+        BCS FAIL
+
+05      INC AECUR       ; NE
+        JSR COMPR
+        BNE PASS
+        BEQ FAIL
+
+06      TAX
+        LDY AECUR
+        JSR LAeLnIY
+        CMPIM "="
+        BEQ #07
+        JSR COMPR
+        BEQ FAIL
+        BCS PASS
+        BCC FAIL
+
+07      INC AECUR       ; gt or eq
+        JSR COMPR
+        BCS PASS
+        BCC FAIL
+
+STROVR  BRK
+        = &13
+        = "String too long"
+        BRK
+
+
+STNCON  JSR PHSTR
+        JSR POWER
+        TAY
+        BNE AddEre
+        STX Work
+        LDYIM 0
+        JSR PlaFs
+        CLC
+        ADC CLEN
+        BCS STROVR
+        TAX
+        PHA
+        LDY CLEN
+08      LDAAY STRACC-1
+        STAAX STRACC-1
+        DEX
+        DEY
+        BNE #08
+
+        JSR POPSTR
+        PLA
+        STA CLEN
+        LDX Work
+        TYA          ;  popstr zeroed Y
+        BEQ #09
+
+ADDER   JSR TERM
+09      CPXIM "+"
+        BEQ PLUS
+        CPXIM "-"
+        BEQ MINUS
+        RTS
+
+PLUS    TAY
+        BEQ STNCON
+        BMI FPLUS
+        JSR PHTERM
+        TAY
+        BEQ AddEre
+        BMI #12
+        JSR PulIWrk
+        LDYIM 0
+        LDA IWrkL
+        CLC
+        ADC IaccL
+        STA IaccL
+        LDA IWrkM
+        ADC IaccM
+        STA IaccM
+        LDA IWrkN
+        ADC IaccN
+        STA IaccN
+        LDA IWrkH
+        ADC IaccH
+AdderP  STA IaccH
+        LDAIM &40     ; reset type
+        BNE #09
+
+AddEre  JMP LETM
+
+FPLUS   JSR PHFACC
+        JSR TERM
+        TAY
+        BEQ AddEre
+        STX TYPE
+        BMI #11
+        JSR IFLT
+11      JSR POPSET
+        JSR FADD
+FFFFA   LDX TYPE
+        LDAIM &FF
+        BNE #09
+12      STX TYPE
+        JSR POPACC
+        JSR PHFACC
+        JSR IFLT
+        JMP #11
+
+MINUS   ROUT
+        TAY
+        BEQ ADDERE
+        BMI FMINUS
+        JSR PHTERM
+        TAY
+        BEQ ADDERE
+        BMI #02
+        JSR PulIwrk
+        LDA IWrkL
+        SEC
+        SBC IaccL
+        STA IaccL
+        LDA IwrkM
+        SBC IaccM
+        STA IaccM
+        LDA IwrkN
+        SBC IaccN
+        STA IaccN
+        LDA IwrkH
+        SBC IaccH
+        JMP AdderP
+
+FMINUS  JSR PHFACC
+        JSR TERM
+        TAY
+        BEQ ADDERE
+        STX TYPE
+        BMI #01
+        JSR IFLT
+01      JSR POPSET
+        JSR FXSUB
+        JMP FFFFA
+
+02      STX TYPE
+        JSR POPACC
+        JSR PHFACC
+        JSR IFLT
+        JSR POPSET
+        JSR FSUB
+        JMP FFFFA
+
+03      JSR IFLT
+04      JSR POPACC
+        JSR PHFACC
+        JSR IFLT
+        JMP #07
+
+05      JSR IFLT
+06      JSR PHFACC
+        JSR POWER
+        STX TYPE
+        TAY
+        JSR FLOATI
+07      JSR POPSET
+        JSR FMUL
+        LDAIM &FF
+        LDX TYPE
+        JMP #15
+
+08      JMP LETM
+
+TIMES   TAY
+        BEQ #08
+        BMI #06
+        LDA IaccH
+        CMP IaccN
+        BNE #05
+        TAY
+        BEQ #09
+        CMPIM &FF
+        BNE #05
+09      EOR IaccM
+        BMI #05
+        JSR PHPOW
+        STX TYPE
+        TAY
+        BEQ #08
+        BMI #04
+        LDA IaccH
+        CMP IaccN
+        BNE #03
+        TAY
+        BEQ #10
+        CMPIM &FF
+        BNE #03
+10      EOR IaccM
+        BMI #03
+        LDA IaccH
+        PHA
+        JSR ABSCOM
+        LDXIM Work+2
+        JSR ACCTOM
+        JSR POPACC
+        PLA
+        EOR IaccH
+        STA Work
+        JSR ABSCOM
+        LDYIM 0
+        LDXIM 0
+        STY Work+8
+        STY Work+9
+11      LSR Work+3
+        ROR Work+2
+        BCC #12
+        CLC
+        TYA
+        ADC IaccL
+        TAY
+        TXA
+        ADC IaccM
+        TAX
+        LDA Work+8
+        ADC IaccN
+        STA Work+8
+        LDA Work+9
+        ADC IaccH
+        STA Work+9
+12      ASL IaccL
+        ROL IaccM
+        ROL IaccN
+        ROL IaccH
+        LDA Work+2
+        ORA Work+3
+        BNE #11
+        STY Work+6
+        STX Work+7
+        LDA Work
+        PHP
+REMIN   LDXIM Work+6
+DIVIN   JSR MTOACC
+        PLP
+        BPL #13
+        JSR COMPNO
+13      LDX TYPE
+        JMP #15
+
+14      JMP TIMES
+
+PHTERM  JSR PHACC
+TERM    JSR POWER
+15      CPXIM "*"
+        BEQ #14
+        CPXIM "/"
+        BEQ DIVIDE
+        CPXIM TMOD
+        BEQ REMAIN
+        CPXIM TDIV
+        BEQ INTDIV
+        RTS
+
+DIVIDE  TAY
+        JSR FLOATI
+        JSR PHFACC
+        JSR POWER
+        STX TYPE
+        TAY
+        JSR FLOATI
+        JSR POPSET
+        JSR FXDIV
+        LDX TYPE
+        LDAIM &FF
+        BNE #15
+REMAIN  JSR DIVOP
+        LDA Work+1
+        PHP
+        JMP REMIN
+
+INTDIV  JSR DIVOP
+        ROL Work+2
+        ROL Work+3
+        ROL Work+4
+        ROL Work+5
+        BIT Work
+        PHP
+        LDXIM Work+2
+        JMP DIVIN
+
+PHPOW   ROUT
+        JSR PHACC
+POWER   JSR FACTOR
+02      PHA
+03      LDY AECUR
+;        JSR LAeLnIY
+        LDA UpDown
+        BEQ #07
+        TYA
+        CLC
+        ADC AeLine
+        STA PPtr
+        LDA AeLine+1
+        ADCIM 0
+        TAY
+        LDAAY   OurRam
+        STAZ    &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA PPtr+1
+        LDYIM 0
+        LDAIY PPtr
+        LDY AeCur
+        JMP #08
+
+07      LDAIY AeLine
+08      INC AECUR
+        CMPIM " "
+        BEQ #03
+        TAX
+        PLA
+        CPXIM "^"
+        BEQ #04
+        RTS
+
+04      TAY
+        JSR FLOATI
+        JSR PHFACC
+        JSR FLTFAC
+        LDA FACCX
+        CMPIM &87
+        BCS #01    ; abs(n)>=64
+        JSR FFRAC
+        BNE #05
+        JSR POPSET
+        JSR FLDA
+        LDA FQUAD
+        JSR FIPOW
+        LDAIM &FF
+        BNE #02
+
+05      JSR STARGC
+        LDA AeStkP
+        STA ARGP
+        LDA AeStkP+1
+        STA ARGP+1
+        LDAIM &FF   ; Stack's Up
+        STA Argp+2
+        JSR FLDA
+        LDA FQUAD
+        JSR FIPOW
+06      JSR STARGB
+        JSR POPSET
+        JSR FLDA
+        JSR FLOG
+        JSR ACMUL
+        JSR FEXP
+        JSR ARGB
+        JSR FMUL
+        LDAIM &FF
+        JMP #02
+
+01      JSR STARGC
+        JSR FONE
+        BNE #06
+
+PulIwrk ROUT
+        CLC
+        LDA AeStkP
+        STA PPtr
+        ADCIM 4
+        STA AeStkP
+        BCC #01
+        BEQ #02
+        LDY AeStkP+1
+        LDAAY Dat
+        CMPIM &BF
+        BNE #04
+        LDA AeStkP   ; note CS
+        SBCIM 4      ; bung it back
+        STA AeStkP
+        LDYIM 3         ; awkward git - reset SP later
+        JSR PlaFs
+        STA IwrkH
+        DEY
+        JSR PlaFs
+        STA IwrkN
+        DEY
+        JSR PlaFs
+        STA IwrkM
+        DEY
+        JSR PlaFs
+        STA IwrkL
+        CLC
+        LDAIM 4
+        JMP PopN
+
+02      LDY AeStkP+1
+04      INC AeStkP+1
+        BNE #03
+        INC AeStkP+2
+        BNE #03
+
+01      LDY AeStkP+1
+03      LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDAAY DAt
+        STA PPtr+1
+        LDYIM 3
+        LDAIY PPtr
+        STA IwrkH
+        DEY
+        LDAIY PPtr
+        STA IwrkN
+        DEY
+        LDAIY PPtr
+        STA IwrkM
+        DEY
+        LDAIY PPtr
+        STA IwrkL
+        RTS
+
+FDA     CLC
+        RTS
+
+AEEQEX  LDA LINE
+        STA AELINE
+        LDA LINE+1
+        STA AELINE+1
+        LDA CURSOR
+        STA AECUR
+EQEXPR  LDY AECUR   ;  =<expression><s d> from aeline
+        INC AECUR
+        JSR LAeLnIY
+        CMPIM " "
+        BEQ EQEXPR
+        CMPIM "="
+        BEQ EXPRDN
+
+EQERRO  BRK
+        = &04,"Mistake"
+
+STDED   BRK
+        = &10,"Syntax error"
+
+DOBRK   BRK
+        = &11,"Escape",0
+
+EQEAT   JSR AESPAC
+        CMPIM "="
+        BNE EQERRO
+        RTS
+
+EXPRDN  JSR EXPR ; <expression><s d> from aeline
+FDONE   TXA       ; fast done immediately after expr
+        LDY AECUR
+        JMP DONET
+
+AEDONE  LDY AECUR  ;  <s d> from aeline
+        JMP DONE+2
+
+DONE    LDY CURSOR   ; <s d> from line
+        DEY
+BLINK   INY
+        JSR LLinIY
+        CMPIM " "
+        BEQ BLINK
+DONET   CMPIM ":"
+        BEQ CLYADP
+        CMPIM &0D
+        BEQ CLYADP
+        CMPIM TELSE
+        BNE STDED
+CLYADP  CLC
+        TYA
+        ADC LINE
+        STA LINE
+        BCC SECUR
+        INC LINE+1
+SECUR   LDYIM &01
+        STY CURSOR
+TSTBRK  BIT ESCFLG
+        BMI DOBRK
+SECEND  RTS
+
+
+FORR    JSR DONE         ;  provides for with the return address
+        DEY
+        JSR LLinIY
+        CMPIM ":"
+        BEQ SECEND
+        LDA UpDown
+        BEQ LEAVER
+LINO    INY              ; skip line number
+        JSR LLinIY
+        CMPIM 0
+        BMI LEAVER
+        LDA TRFLAG
+        BEQ NOTR
+        TYA
+        PHA
+        INY
+        JSR LLinIY
+        PHA
+        DEY
+        JSR LLinIY
+        TAY
+        PLA
+        JSR AYACC
+        JSR TRJOBA
+        PLA
+        TAY
+NOTR    INY
+        SEC
+        TYA
+        ADC LINE
+        STA LINE
+        BCC LINOIN
+        INC LINE+1
+LINOIN  LDYIM &01
+        STY CURSOR
+NOTRDE  RTS
+
+
+LEAVER  JMP CLRSTK
+
+
+; if statement
+
+IFE     JMP LETM
+
+IF      JSR AEEXPR
+        BEQ IFE
+        BPL IFX
+        JSR IFIX
+IFX     LDY AECUR
+        STY CURSOR
+        LDA IaccL
+        ORA IaccM
+        ORA IaccN
+        ORA IaccH
+        BEQ ELSE
+        CPXIM TTHEN
+        BEQ THEN
+THENST  JMP STMT
+
+
+THEN    INC CURSOR
+THENLN  JSR SPTSTN
+        BCC THENST
+        JSR GOTGO
+        JSR SECUR
+        JMP GODONE
+
+ELSE    LDY CURSOR          ; try to find else clause
+ELSELP  JSR LLinIY
+        CMPIM &0D
+        BEQ ENDED
+        INY
+        CMPIM TELSE
+        BNE ELSELP
+        STY CURSOR
+        BEQ THENLN
+ENDED   JMP ENDEDL
+
+
+TRJOBA  LDA IaccL
+        CMP TRNUM
+        LDA IaccM
+        SBC TRNUM+1
+        BCS NOTRDE
+        LDAIM "["
+        JSR CHOUT
+        JSR POSITE
+        LDAIM "]"
+        JSR CHOUT
+        JMP LISTPT
+
+        LNK     BAS08

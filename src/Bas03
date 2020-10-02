@@ -1,0 +1,1039 @@
+             TTL > Bas03  address tables, assembler
+
+ADTABL = OPENU
+
+       = RPTR      ; poly ptr on right
+       = RPAGE
+       = RTIME
+       = RLOMEM
+       = RHIMEM
+
+       = ABS
+       = ACS
+       = ADC
+       = ASC
+       = ASN
+       = ATN
+       = BGET
+       = COS
+       = COUNT
+       = DEG
+       = ERL
+       = ERR
+       = EVAL
+       = EXP
+       = EXT
+       = FALSE
+       = FN
+       = GET
+       = INKEY
+       = INSTR
+       = INT
+       = LEN
+       = LN
+       = LOG
+       = NOT
+       = OPENI
+       = OPENO
+       = PI
+       = POINT
+       = POS
+       = RAD
+       = RND
+       = SGN
+       = SIN
+       = SQR
+       = TAN
+       = TO
+       = TRUE
+       = USR
+       = VAL
+       = VPOS
+
+       = CHRd
+       = GETd
+       = INKEd
+       = LEFTd
+       = MIDd
+       = RIGHTd
+       = STRd
+       = STRNd
+       = EOF
+
+       = AUTO
+       = DELETE
+       = LOAD
+       = LIST
+       = NEW
+       = OLD
+       = RENUM
+       = SAVE
+
+       = STDED
+
+       = LPTR           ; polys on left
+       = LPAGE
+       = LTIME
+       = LLOMM
+       = LHIMM
+
+       = BEEP
+       = BPUT
+       = CALL
+       = CHAIN
+       = CLEAR
+       = CLOSE
+       = CLG
+       = CLS
+       = DATA
+       = DEF
+       = DIM
+       = DRAW
+       = END
+       = ENDPR
+       = ENVEL
+       = FOR
+       = GOSUB
+       = GOTO
+       = GRAPH
+       = IF
+       = INPUT
+       = LET
+       = LOCAL
+       = MODES
+       = MOVE
+       = NEXT
+       = ON
+       = VDU
+       = PLOT
+       = PRINT
+       = PROC
+       = READ
+       = REM
+       = REPEAT
+       = REPORT
+       = RESTORE
+       = RETURN
+       = RUN
+       = STOP
+       = TEXTS
+       = TRACE
+       = UNTIL
+       = WIDTH
+
+       = OSCL
+
+ADTABH = /OPENU
+
+       = /RPTR
+       = /RPAGE
+       = /RTIME
+       = /RLOMEM
+       = /RHIMEM
+
+       = /ABS
+       = /ACS
+       = /ADC
+       = /ASC
+       = /ASN
+       = /ATN
+       = /BGET
+       = /COS
+       = /COUNT
+       = /DEG
+       = /ERL
+       = /ERR
+       = /EVAL
+       = /EXP
+       = /EXT
+       = /FALSE
+       = /FN
+       = /GET
+       = /INKEY
+       = /INSTR
+       = /INT
+       = /LEN
+       = /LN
+       = /LOG
+       = /NOT
+       = /OPENI
+       = /OPENO
+       = /PI
+       = /POINT
+       = /POS
+       = /RAD
+       = /RND
+       = /SGN
+       = /SIN
+       = /SQR
+       = /TAN
+       = /TO
+       = /TRUE
+       = /USR
+       = /VAL
+       = /VPOS
+       = /CHRd
+       = /GETd
+       = /INKEd
+       = /LEFTd
+       = /MIDd
+       = /RIGHTd
+       = /STRd
+       = /STRNd
+       = /EOF
+
+       = /AUTO
+       = /DELETE
+       = /LOAD
+       = /LIST
+       = /NEW
+       = /OLD
+       = /RENUM
+       = /SAVE
+
+       = /STDED
+
+       = /LPTR
+       = /LPAGE
+       = /LTIME
+       = /LLOMM
+       = /LHIMM
+       = /BEEP
+       = /BPUT
+       = /CALL
+       = /CHAIN
+       = /CLEAR
+       = /CLOSE
+       = /CLG
+       = /CLS
+       = /DATA
+       = /DEF
+       = /DIM
+       = /DRAW
+       = /END
+       = /ENDPR
+       = /ENVEL
+       = /FOR
+       = /GOSUB
+       = /GOTO
+       = /GRAPH
+       = /IF
+       = /INPUT
+       = /LET
+       = /LOCAL
+       = /MODES
+       = /MOVE
+       = /NEXT
+       = /ON
+       = /VDU
+       = /PLOT
+       = /PRINT
+       = /PROC
+       = /READ
+       = /REM
+       = /REPEAT
+       = /REPORT
+       = /RESTORE
+       = /RETURN
+       = /RUN
+       = /STOP
+       = /TEXTS
+       = /TRACE
+       = /UNTIL
+       = /WIDTH
+
+       = /OSCL
+
+MNEML = &4B  ; brk-tya
+       = &83
+       = &84
+       = &89
+       = &96
+       = &B8
+       = &B9
+       = &D8
+       = &D9
+       = &F0
+       = &01
+       = &10
+       = &81
+       = &90
+       = &89
+       = &93
+       = &A3
+       = &A4
+       = &A9
+       = &38
+       = &39
+       = &78
+       = &01
+       = &13
+       = &21
+
+       = &63   ; bcc-bvs
+       = &73
+       = &B1
+       = &A9
+       = &C5
+       = &0C
+       = &C3
+       = &D3
+
+       = &C4   ;  and
+       = &F2   ;  eor
+       = &41   ;  ora
+       = &83   ;  adc
+       = &B0   ;  cmp
+       = &81   ;  lda
+       = &43   ;  sbc
+
+       = &6C   ;  asl ror
+       = &72
+       = &EC
+       = &F2
+
+       = &A3   ;  dec inc
+       = &C3
+
+       = &18   ;  cpx cpy
+       = &19
+               ;   jmp jsr ldx ldy sta stx sty
+       = &34
+
+       = &B0
+
+       = &72
+
+       = &98
+
+       = &99
+
+       = &81
+
+       = &98
+
+       = &99
+
+       = &14   ;  opt
+
+       = &35   ;  equ
+MNEMR = &0A
+       = &0D
+       = &0D
+       = &0D
+       = &0D
+       = &10
+       = &10
+       = &25
+       = &25
+       = &39
+       = &41
+       = &41
+       = &41
+       = &41
+       = &4A
+       = &4A
+       = &4C
+       = &4C
+       = &4C
+       = &50
+       = &50
+       = &52
+       = &53
+       = &53
+       = &53
+
+       = &08
+       = &08
+       = &08
+       = &09
+       = &09
+       = &0A
+       = &0A
+       = &0A
+
+       = &05
+       = &15
+       = &3E
+       = &04
+       = &0D
+       = &30
+       = &4C
+
+       = &06
+       = &32
+       = &49
+       = &49
+
+       = &10
+       = &25
+
+       = &0E
+       = &0E
+
+       = &09
+
+       = &29
+
+       = &2A
+
+       = &30
+
+       = &30
+
+       = &4E
+
+       = &4E
+
+       = &4E
+
+       = &3E
+
+       = &16
+STCODE = &00
+       = &18
+       = &D8
+       = &58
+       = &B8
+       = &CA
+       = &88
+       = &E8
+       = &C8
+       = &EA
+       = &48
+       = &08
+       = &68
+       = &28
+       = &40
+       = &60
+       = &38
+       = &F8
+       = &78
+       = &AA
+       = &A8
+       = &BA
+       = &8A
+       = &9A
+       = &98
+
+       = &90
+       = &B0
+       = &F0
+       = &30
+       = &D0
+       = &10
+       = &50
+       = &70
+
+       = &21
+       = &41
+       = &01
+       = &61
+       = &C1
+       = &A1
+       = &E1
+
+       = &06
+       = &46
+       = &26
+       = &66
+
+       = &C6
+       = &E6
+
+       = &E0
+       = &C0
+
+       = &20
+
+       = &4C
+
+       = &20
+
+       = &A2
+
+       = &A0
+
+       = &81
+
+       = &86
+
+       = &84
+
+STOPASM LDAIM &FF
+       STA BYTESM
+       JMP STMT
+
+SASM   ROUT
+       LDAIM &03     ; default OPT setting
+       STA BYTESM
+CASM   JSR SPACES
+       CMPIM "]"
+       BEQ STOPASM    
+
+       JSR CLYADP
+       DEC CURSOR
+       JSR MNEENT
+       DEC CURSOR
+       LDA BYTESM
+       LSRA
+       BCS #01
+       JMP #20      ; no lusting
+
+01     LDA TALLY
+       ADCIM &04
+       STA WORK+8 ;5+current position
+       LDA PC+2   ; test for extended addr
+       CMPIM 1
+       BNE #02
+       LDY Work+1
+       LDAAY DAT
+       JMP #03
+
+02     LDA WORK+1
+03     JSR HEXOUT
+       LDA WORK
+       JSR HEXSP
+       LDXIM &FC
+       LDY WORK+2
+       BPL #04
+       LDY CLEN
+04     STY WORK+1
+       BEQ #10
+       LDYIM &00
+05     INX
+       BNE #08
+       JSR NLINE
+       LDX WORK+8
+       JSR LISTPL
+       LDXIM &FD
+
+08     LDA AsmHi
+       CMPIM 1
+       BNE #06
+       STY MoveTY  ; ext. addr is up
+       CLC
+       TYA
+       ADC Work+3
+       STA PPtr
+       LDA work+4
+       ADCIM 0
+       JSR SamYCvt
+       STA PPtr+1
+       LDYIM 0
+       LDAIY PPtr
+       LDY MoveTY
+       JMP #07
+
+06     LDAIY Work+3
+07     JSR HEXSP
+       INY
+       DEC WORK+1
+       BNE #05
+10     TXA
+       TAY
+09     INY
+       BEQ #11
+       LDXIM &03
+       JSR LISTPL
+       BEQ #09
+11     LDXIM &0A ;Y=0   
+       JSR LLINIY
+       CMPIM "."
+       BNE #16          ; no label
+13     JSR TOKOUT
+       DEX
+       BNE #14
+       LDXIM &01
+14     INY
+       JSR LLinIY
+       CPY NEWVAR
+       BNE #13
+16     JSR LISTPL
+       DEY
+17     INY 
+       STA PPTR2+1
+       JSR LlinIY
+       CMP PPTR2+1
+       BEQ #17      
+15     JSR LLinIY
+       CMPIM ":"
+       BEQ #18
+       CMPIM &0D
+       BEQ #19   ; no code
+12     JSR TOKOUT
+       INY
+       BNE #15
+18     CPY CURSOR
+       BCC #12
+19     JSR NLINE
+
+20     LDY CURSOR
+       DEY
+21     INY 
+       JSR LlinIY
+       CMPIM ":"
+       BEQ #22
+       CMPIM &0D
+       BNE #21
+22     JSR DONE+2
+       DEY
+       JSR LlinIY
+       CMPIM ":"
+       BEQ SASMJ
+       LDA UpDown
+       BMI #23        ; do this for in program
+       JMP CLRSTK
+
+23     JSR LINO
+SASMJ  JMP CASM
+
+SETL   ROUT
+       JSR CRAELV
+       BEQ ASSDED
+       BCS ASSDED
+       LDA LVud
+       STA IaccH        ; de noo SamLVal
+       JSR PHACC
+
+       LDA PC          ; was JSR getPC
+       STA IaccL
+       LDA PC+1
+       STA IaccM
+       LDA PC+2
+       STA IaccN                  
+       LDA PC+3
+       STA IaccH
+       LDAIM &40
+       STA TYPE
+       JSR STORE
+       JSR ASCUR
+       STY NEWVAR
+MNEENT LDXIM &03
+       JSR SPACES
+       LDYIM &00
+       STY MOVAD
+       CMPIM ":"
+       BEQ #04
+       CMPIM &0D
+       BEQ #04
+       CMPIM "\"
+       BEQ #04
+       CMPIM "."
+       BEQ SETL
+       DEC CURSOR
+RDLUP  LDY CURSOR
+       INC CURSOR
+       JSR LlinIY
+       CMPIM 0
+       BMI RDSLPT
+       CMPIM " "
+       BEQ RDOUT
+       LDYIM &05
+       ASLA
+       ASLA
+       ASLA
+INLUP  ASLA
+       ROL MOVAD
+       ROL MOVAD+1
+       DEY
+       BNE INLUP
+       DEX
+       BNE RDLUP
+RDOUT  LDXIM &3A
+       LDA MOVAD
+SRCHM  CMPAX MNEML-1
+       BNE NOTGOT
+       LDYAX MNEMR-1
+       CPY MOVAD+1
+       BEQ RDOPGT
+NOTGOT DEX
+       BNE SRCHM
+ASSDED JMP STDED
+RDSLPT LDXIM &22
+       CMPIM TAND
+       BEQ RDOPGT
+       INX
+       CMPIM TEOR
+       BEQ RDOPGT
+       INX
+       CMPIM TOR
+       BNE ASSDED
+       INC CURSOR
+       INY
+       JSR LlinIY
+       CMPIM "A"
+       BNE ASSDED
+RDOPGT LDAAX STCODE-1
+       STA OPCODE
+       LDYIM &01
+       CPXIM &1A
+       BCC #04
+       JMP NGPONE
+
+04     LDA PC+2
+       PHA
+       LDA PC
+       STA WORK
+       STY WORK+2
+       LDX BYTESM
+       CPXIM &04
+       LDX PC+1
+       STX WORK+1
+       BCC #06
+       PLA
+       LDA PC-2
+       PHA
+       LDA PC-4
+       LDX PC-3
+06     STA WORK+3
+       STX WORK+4
+       PLA
+       STA AsmHi
+       TYA
+       BEQ #11
+       BPL #07
+       LDY CLEN
+       BEQ #11
+07     DEY
+       LDAAY Iacc-1
+       BIT WORK+2
+       BPL #08
+       LDAAY STRACC  
+08     PHP
+       PHA
+       LDA AsmHi
+       CMPIM 1
+       BNE #02
+       STY MoveTY  ; addr is Up
+       CLC
+       TYA
+       ADC Work+3
+       STA PPtr
+       LDA Work+4
+       ADCIM 0
+       JSR SamYCvt
+       STA PPtr+1
+       LDYIM 0
+       PLA
+       STAIY PPtr
+       LDY MoveTY
+       JMP #03
+
+02     PLA
+       STAIY Work+3
+03     PLP
+       INC PC
+       BNE #09
+       LDA PC+2  ; check for extended addr
+       CMPIM 1
+       BNE #01
+       LDA PC+1
+       ANDIM &3F
+       CMPIM &3F
+       BEQ Rap
+01     INC PC+1
+09     BCC #10
+       INC PC-4
+       BNE #10
+       INC PC-3               
+       BNE #10
+       INC PC-2  ; O% is allowed to wrap (but what about &7FFF-->&8000)
+                 ; Sod that - What about &FFFF to &10000?
+10     TYA
+       BNE #07
+11     RTS
+
+Rap    BRK
+       =   98,"Wrap",0     ; boring message, huh?
+
+NGPONE CPXIM &22
+       BCS NGPTWO
+       JSR ASEXP2   ; dest in Iacc
+       CLC
+       LDA IaccL
+       SBC PC
+       TAY
+       DEY
+       LDA IaccM
+       SBC PC+1
+       STA PPtr2+1
+       LDA IaccN
+       SBC PC+2
+       BEQ FWD
+       ORA PPtr2+1
+       CMPIM &FF
+       BEQ BWD
+BOR    LDA BYTESM
+       ANDIM &02
+       BEQ BRSTOR
+       BRK
+       = &01
+       = "Out of range"
+       BRK
+
+BRSTOR TAY
+BRSTO  STY Iacc
+       LDA IaccN
+       CMPIM 1          ; is it an extended address?
+       BNE BRST
+       LDA IaccM
+       EOR PC+1
+       ANDIM &C0
+       BEQ BRST
+       JMP BankErr
+
+BRST   LDYIM &02
+       JMP #04
+
+BWD    TYA
+       BMI BRSTO
+       BPL BOR
+
+FWD    TYA
+       BPL BRSTO
+       BMI BOR
+
+NGPTWO CPXIM &29
+       BCS NGPTHR
+       JSR SPACES
+       CMPIM "#"
+       BNE NOTHSH
+       JSR Plus8
+IMMED  JSR ASEXPR
+INDINX LDA IaccM
+       BEQ BRST
+BYTE   BRK
+       = &02
+       = "Byte"
+       BRK
+
+NGPTHR CPXIM &36
+       BNE NOPSTA
+       JSR SPACES
+NOTHSH CMPIM "("
+       BNE NOTIND
+       JSR ASEXPR
+       JSR SPACES
+       CMPIM ")"
+       BNE ININX
+       JSR SPACES
+       CMPIM ","
+       BNE BADIND
+       JSR Plus10
+       JSR SPACES
+       CMPIM "Y"
+       BNE BADIND
+       BEQ INDINX
+
+ININX  CMPIM ","
+       BNE BADIND
+       JSR SPACES
+       CMPIM "X"
+       BNE BADIND
+       JSR SPACES
+       CMPIM ")"
+       BEQ INDINX
+BADIND BRK
+       = &03
+       = "Index"
+       BRK
+
+NOTIND DEC CURSOR
+       JSR ASEXPR
+       JSR SPACES
+       CMPIM ","
+       BNE OPTIM
+       JSR Plus10
+       JSR SPACES
+       CMPIM "X"
+       BEQ OPTIM
+       CMPIM "Y"
+       BNE BADIND
+UNOPT  JSR Plus8
+       JMP #12
+
+OPTIM  JSR Plus4
+OPTIMA LDA IaccM
+       BNE UNOPT
+       JMP BRST
+NOPSTA CPXIM &2F
+       BCS NGPFR
+       CPXIM &2D
+       BCS INCDEC
+       JSR SPACES
+       CMPIM "A"
+       BEQ ACCUM
+       DEC CURSOR
+INCDEC JSR ASEXPR
+       JSR SPACES
+       CMPIM ","
+       BNE OPTIMA
+       JSR Plus10
+       JSR SPACES
+       CMPIM "X"
+       BEQ OPTIMA
+       JMP BADIND
+ACCUM  JSR Plus4
+       LDYIM &01
+       BNE #13
+NGPFR  CPXIM &32
+       BCS NGPFV
+       CPXIM &31
+       BEQ BIT
+       JSR SPACES
+       CMPIM "#"
+       BNE NHASH
+       JMP IMMED
+NHASH  DEC CURSOR
+BIT    JSR ASEXPR
+       JMP OPTIM
+NGPFV  CPXIM &33
+       BEQ JSR
+       BCS NGPSX
+       JSR SPACES
+       CMPIM "("
+       BEQ #14
+       DEC CURSOR
+JSR    JSR ASEXPR
+12     LDYIM &03
+13     JMP #04
+
+14     JSR Plus10
+       JSR Plus10
+       JSR ASEXPR
+       JSR SPACES
+       CMPIM ")"
+       BEQ #12
+       JMP BADIND
+
+NGPSX  CPXIM &39
+       BCS OPTION
+       LDA MOVAD
+       EORIM &01
+       ANDIM &1F       ; get x or y value
+       PHA
+       CPXIM &37
+       BCS STXY
+       JSR SPACES
+       CMPIM "#"
+       BNE LDXY
+       PLA
+       JMP IMMED
+
+LDXY   DEC CURSOR
+       JSR ASEXPR
+       PLA
+       STA WORK
+       JSR SPACES
+       CMPIM ","
+       BEQ LDIND
+       JMP OPTIM
+
+LDIND  JSR SPACES
+       ANDIM &1F
+       CMP WORK
+       BNE LDINDB
+       JSR Plus10
+       JMP OPTIM
+
+LDINDB JMP BADIND
+
+STXY   JSR ASEXPR
+       PLA
+       STA WORK
+       JSR SPACES
+       CMPIM ","
+       BNE GOOP
+       JSR SPACES
+       ANDIM &1F
+       CMP WORK
+       BNE LDINDB
+       JSR Plus10
+       LDA IaccM
+       BEQ GOOP
+       JMP BYTE
+
+GOOP   JMP OPTIMA
+
+OPTION BNE EQUBWS
+       JSR ASEXPR
+       LDA IaccL
+       STA BYTESM
+       LDYIM &00
+       JMP #04
+
+BankErr BRK
+        =  99,"Bank",0
+
+AsExpr JSR AEEXPR
+       JSR INTEGB
+       LDA IaccN        ; got address in Iacc, so transform it
+       CMPIM 1
+       BNE AsCur
+       LDA IaccM
+       EOR PC+1
+       ANDIM &C0
+       BNE BankErr
+       LDY IaccM
+       LDAAY DAT
+       STA IaccM
+ASCUR  LDY AECUR
+       STY CURSOR
+       RTS
+
+AsExp2 JSR AeExpr       ; dont want to transform the value
+       JSR IntegB
+       JMP AsCur
+
+Plus10 JSR Plus8
+Plus8  JSR Plus4
+Plus4  LDA OPCODE
+       CLC
+       ADCIM &04
+       STA OPCODE
+       RTS
+
+EQUBWS LDXIM &01
+       LDY CURSOR
+       INC CURSOR 
+       JSR LlinIY
+       CMPIM "B"
+       BEQ EQUB
+       INX
+       CMPIM "W"
+       BEQ EQUB
+       LDXIM &04
+       CMPIM "D"
+       BEQ EQUD
+       CMPIM "S"
+       BEQ EQUS
+       JMP STDED
+
+EQUD   TXA
+       PHA
+       JSR AsExp2
+       JMP #05
+
+EQUB   TXA
+       PHA
+       JSR ASEXPR
+05     LDXIM OPCODE
+       JSR ACCTOM
+       PLA
+       TAY
+EQUSX  JMP #04
+
+EQUSE  JMP LETM
+
+EQUS   LDA BYTESM
+       PHA
+       JSR AEEXPR
+       BNE EQUSE
+       PLA
+       STA BYTESM
+       JSR ASCUR
+       LDYIM &FF
+       BNE EQUSX
+
+       LNK Bas04

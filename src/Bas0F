@@ -1,0 +1,976 @@
+        TTL     > Bas0F - input read line editor, stack files
+
+
+INPUhD  JMP LETM
+
+INPUhE  JMP STDED
+
+INPUhX  STY CURSOR
+        JMP DONEXT
+
+INPUTh  DEC CURSOR
+        JSR AECHAN
+        LDA AECUR
+        STA CURSOR
+        STY CoefP
+INPUhL  JSR SPACES
+        CMPIM ","
+        BNE INPUhX
+        LDA CoefP
+        PHA
+        JSR CrAeLv
+        BEQ INPUhE
+        LDA LVud
+        STA IaccH
+        LDA AECUR
+        STA CURSOR
+        PLA
+        STA CoefP
+        PHP
+        JSR PHACC
+        LDY CoefP
+        JSR OSBGET
+        STA TYPE
+        PLP
+        BCC INPUhN
+        LDA TYPE
+        BNE INPUhD
+        JSR OSBGET
+        STA CLEN
+        TAX
+        BEQ INPUhS
+INPUhT  JSR OSBGET
+        STAAX STRACC-1
+        DEX
+        BNE INPUhT
+INPUhS  JSR STSTOR
+        JMP INPUhL
+
+INPUhN  LDA TYPE
+        BEQ INPUhD
+        BMI INPUhF
+        LDXIM &03
+INPUhI  JSR OSBGET
+        STAAX IACCL
+        DEX
+        BPL INPUhI
+        BMI INPUhJ
+
+INPUhF  LDXIM &04
+INPUhR  JSR OSBGET
+        STAAX FWSA
+        DEX
+        BPL INPUhR
+        JSR LDARGA
+INPUhJ  JSR STORE
+        JMP INPUhL
+
+INOUT   PLA
+        PLA
+        JMP DONEXT
+
+INPUT   ROUT
+        JSR SPACES
+        CMPIM "#"
+        BEQ INPUTh
+        CMPIM TLINE
+        BEQ #01
+        DEC CURSOR
+        CLC
+01      ROR CoefP
+        LSR CoefP
+        LDAIM &FF
+        STA CoefP+1
+03      JSR PRTSTN
+        BCS INPHP   ; CS means nothing found to print
+02      JSR PRTSTN
+        BCC #02
+        LDXIM &FF
+        STX CoefP+1
+        CLC
+INPHP   PHP
+        ASL CoefP
+        PLP         ; top bit of coefp is "did we print a prompt"
+        ROR CoefP
+        CMPIM ","
+        BEQ #03
+        CMPIM ";"
+        BEQ #03
+        DEC CURSOR
+        LDA CoefP
+        PHA
+        LDA CoefP+1
+        PHA
+        JSR CrAeLv
+        BEQ INOUT
+        LDA LVud
+        STA IaccH
+        PLA
+        STA CoefP+1
+        PLA
+        STA CoefP
+        LDA AECUR
+        STA CURSOR
+        PHP
+        LDA UpDown  ; while getting values from Stracc, all is downstairs.
+        PHA
+        LDAIM 0
+        STA UpDown
+        BIT CoefP
+        BVS #07
+        LDA CoefP+1
+        CMPIM &FF
+        BNE #09
+07      BIT CoefP
+        BPL #08
+        LDAIM "?"
+        JSR CHOUT
+08      JSR INLINE
+        STY CLEN
+        ASL CoefP
+        CLC
+        ROR CoefP
+        BIT CoefP
+        BVS #06
+09      STA AECUR
+        LDAIM STRACC
+        STA AeLine
+        LDAIM :MSB: STRACC 
+        STA AeLine+1
+        JSR DATAST
+04      JSR AESPAC
+        CMPIM ","
+        BEQ #05
+        CMPIM &0D 
+        BNE #04
+        LDYIM &FE
+05      INY
+        STY CoefP+1
+06      PLA
+        STA UpDown      ; restore pos of current line.
+        PLP
+        BCS INPSTR
+        JSR PHACC
+        JSR VALSTR
+        JSR STORE
+        JMP #03
+
+INPSTR  LDAIM &00
+        STA TYPE
+        JSR STSTRE
+        JMP #03
+
+
+RESTORE LDYIM &00
+        STY Work+6
+        LDY TXTP
+        STY Work+7
+        JSR SPACES
+        DEC CURSOR
+        CMPIM ":"
+        BEQ RESDON
+        CMPIM &0D
+        BEQ RESDON
+        CMPIM TELSE
+        BEQ RESDON
+        JSR GOFACT
+        LDYIM &01
+        JSR CLYADW ;0 points to the hopeful DATA token
+RESDON  JSR DONE
+        LDA Work+6
+        STA DATAP
+        LDA Work+7
+        STA DATAP+1
+        JMP NXT
+
+READS   JSR SPACES
+        CMPIM ","
+        BEQ READ
+        JMP SUNK
+
+READ    JSR CrAeLv
+        BEQ READS
+        BCS READST
+        LDA LVud
+        STA IaccH
+        JSR DATAIT
+        JSR PHACC
+        LDA UpDown
+        PHA
+        LDAIM &FF
+        STA UpDown
+        JSR STEXPR
+        PLA
+        STA UpDown
+        JMP READEN
+
+READST  JSR DATAIT
+        JSR PHACC
+        LDA UpDown
+        PHA
+        LDAIM &FF
+        STA UpDown
+        JSR DATAST
+        STA TYPE
+        PLA
+        STA UpDown
+        JSR STSTOR
+READEN  CLC
+        LDA AECUR
+        ADC AeLine
+        STA DATAP
+        LDA AeLine+1
+        ADCIM &00
+        STA DATAP+1
+        JMP READS
+
+DATAIT  LDA UpDown
+        PHA
+        LDAIM &FF       ; force up
+        STA UpDown
+        LDA AECUR
+        STA CURSOR
+        LDA DATAP
+        STA AeLine
+        LDA DATAP+1
+        STA AeLine+1
+        LDYIM &00
+        STY AECUR
+        JSR AESPAC
+        CMPIM ","
+        BEQ DATAOK
+        CMPIM TDATA
+        BEQ DATAOK
+        CMPIM &0D
+        BEQ DATANX
+DATALN  JSR AESPAC
+        CMPIM ","
+        BEQ DATAOK
+        CMPIM &0D
+        BNE DATALN
+DATANX  LDY AECUR
+        JSR LAeLnIY
+        TAX     ; set flags
+        BMI DATAOT
+        INY
+        INY
+        JSR LAeLnIY
+        TAX
+DATANS  INY
+        JSR LAeLnIY
+        CMPIM " "
+        BEQ DATANS
+        CMPIM TDATA
+        BEQ DATAOL
+        TXA
+        CLC
+        ADC AeLine
+        STA AeLine
+        BCC DATANX
+        INC AeLine+1
+        BCS DATANX
+
+DATAOT  BRK
+        = &2A
+        = "Out of ", TDATA
+
+NODOS   BRK
+        = &2B
+        = "No ", TREPEAT
+        BRK
+
+DATAOL  INY
+        STY AECUR
+DATAOK  PLA
+        STA UpDown
+        RTS
+
+UNTIL   JSR AEEXPR
+        JSR FDONE
+        JSR INTEG
+        LDX DOSTKP
+        BEQ NODOS
+        LDA IACCL
+        ORA IACCM
+        ORA IACCN
+        ORA IACCH
+        BEQ REDO
+        DEC DOSTKP
+        JMP NXT
+
+REDO    LDYAX DOADL-1
+        LDAAX DOADH-1
+        JMP JUMPAY
+
+DODP    BRK
+        = &2C
+        = "Too many ", TREPEAT, "s"
+        BRK
+
+REPEAT  LDX DOSTKP
+        CPXIM DOTOP
+        BCS DODP
+        JSR CLYADP
+        LDA LINE
+        STAAX DOADL
+        LDA LINE+1
+        STAAX DOADH
+        INC DOSTKP
+        JMP STMT
+
+INLINE  LDYIM STRACC
+        LDAIM :MSB: STRACC 
+        BNE BUFFA
+BUFF    JSR CHOUT
+        LDYIM BUFFER
+        LDAIM :MSB: BUFFER 
+BUFFA   STY Work
+        STA Work+1
+        LDAIM &EE
+        STA Work+2
+        LDAIM " "
+        STA Work+3
+        LDYIM &FF
+        STY Work+4
+        INY
+        LDXIM Work
+        TYA
+        JSR OSWORD
+        BCC BUFEND
+        JMP DOBRK
+
+NLINE   JSR OSCRLF
+BUFEND  LDAIM &00
+        STA TALLY
+        RTS
+
+REMOVE  ROUT
+        JSR FNDLNO  ;  removes line whose number is in IACC
+        LDA PPtr    ; make sure Work+7 set OK
+        STA Work+7
+        BCS #07
+        LDA Work+6   ; step Work + 6 back to line start
+        SBCIM &02
+        STA Work
+        STA Work+6
+        STA TOP
+        LDA Work+7
+        SBCIM &00
+        STA Work+1
+        STA TOP+1
+        STA Work+7
+        LDAIM &03       ; get length
+        CLC
+        ADC   Work+6
+        STA   PPtr
+        LDA   Work+7
+        ADCIM 0
+        JSR   SamYCvt
+        STA   PPtr+1
+        LDYIM 0
+        LDAIY PPtr      ; Length!
+        CLC
+        ADC Work        ; Work -> next line
+        STA Work
+        BCC MOVEA
+        INC Work+1
+MOVEA   LDAIM &00
+        STAZ  MoveTY
+02      JSR   #01
+        CMPIM &0D
+        BEQ MOVEND
+03      INC MoveTY
+        BNE #02
+        INC Work+1
+        INC TOP+1
+        BNE #02         ; always
+
+MOVEND  INC MoveTY
+        BNE #06
+        INC Work+1
+        INC TOP+1
+06      JSR #01
+        BMI #04
+        JSR SILINC
+        JSR SILINC
+        JMP #03
+
+
+04      LDYZ MoveTY
+        INY
+        JSR YADT     ; CC from #01, but it used to be set.
+        CLC          ; carry clear if remove, set if not
+07      RTS
+
+SILINC  INC MoveTY
+        BNE #01
+        INC TOP+1
+        INC Work+1
+01      LDAZ    MoveTY  ; replaces LDAIY Work : STAIY Top
+        CLC
+        ADC     Work
+        STAZ    PPtr
+        LDA     Work+1
+        ADCIM   0
+        JSR     SamYCvt
+        STA     PPtr+1
+        LDYIM   0
+        LDAIY   PPtr
+        PHA
+        LDAZ    MoveTY
+        CLC
+        ADC     Top
+        STAZ    PPtr
+        LDA     Top+1
+        ADCIM   0
+        JSR     SamYCvt
+        STAZ    PPtr+1
+        LDYIM   0
+        PLA
+        STAIY   PPtr
+10      RTS
+
+INSRT   STY Work+4
+        JSR REMOVE
+        LDYIM :MSB: BUFFER 
+        STY Work+5
+        LDYIM &00
+        LDAIM &0D
+        CMPIY Work+4  ; still pointing at Buffer
+        BEQ #10
+13      INY
+        CMPIY Work+4
+        BNE #13
+        INY
+        INY
+        INY
+        STY Work+8
+        INC Work+8
+        LDA TOP
+        STA Work+2
+        LDA TOP+1
+        STA Work+3
+        JSR YADT
+        STA Work
+        LDA TOP+1
+        STA Work+1
+        DEY
+        STY MoveTY
+        LDA HIMEM
+        CMP TOP
+        LDA HIMEM+1
+        SBC TOP+1
+        LDA HIMEM+2
+        SBCIM 1   ; TOP+2 - fixed
+        BCS MOVEUP
+        JSR ENDER ; restore TOP
+        JSR SETFSA
+
+        BRK
+        BRK
+        = TLINE, " space"
+        BRK
+
+MOVEUP  CLC
+        LDA MoveTY
+        ADC Work+2
+        STA PPtr
+        LDA Work+3
+        ADCIM 0
+        JSR SamYCvt
+        STA PPtr+1
+        LDYIM 0
+        LDAIY PPtr
+        PHA
+        CLC
+        LDA MoveTY
+        ADC Work
+        STA PPtr
+        LDA Work+1
+        ADCIM 0
+        JSR SamYCvt
+        STA PPtr+1
+        LDYIM 0
+        PLA
+        STAIY PPtr
+        
+        LDA MoveTY
+        BNE LOW
+        DEC Work+3
+        DEC Work+1
+LOW     DEC MoveTY
+        LDA MoveTY
+        SEC
+        ADC Work+2
+        LDX Work+3
+        BCC LOWW
+        INX
+LOWW    CMP Work+6
+        BNE MoveUp
+        CPX Work+7
+        BNE MOVEUP
+        LDYIM &01
+        STY MoveTY
+        LDA IACCM
+        JSR #11
+        INC MoveTY
+        LDA IACCL
+        JSR #11
+        INC MoveTY
+        LDA Work+8
+        JSR #11
+        LDY MoveTY
+        SEC
+        JSR CLYAp1
+        LDYIM &FF
+        STY MoveTY
+INSLOP  INC MoveTY
+        LDY MoveTY
+        LDAIY Work+4 ; always Buffer (!)
+        JSR #11
+        CMPIM &0D
+        BNE INSLOP
+        RTS
+
+11      PHA
+        LDA MoveTY
+        CLC
+        ADC Work+6
+        STAZ PPtr
+        LDA Work+7
+        ADCIM 0
+        JSR SamYCvt
+        STA PPtr+1
+        LDYIM 0
+        PLA
+        STAIY PPtr
+        RTS
+
+
+RUN     ROUT
+        JSR DONE
+RUNNER  JSR SETFSA
+        LDA TXTP
+        STA LINE+1
+        STX LINE
+        LDAIM &FF       ; force upstairs explicitly
+        STA UpDown
+        JMP RUNTHG
+
+
+SETFSA  LDA TOP
+        STA LOMEM
+        STA FSA
+        LDA TOP+1
+        STA LOMEM+1
+        STA FSA+1
+        JSR SETVAR
+SETVAL  LDXIM &80
+        LDAIM &00
+SETVRL  STAAX VARPTR-1
+        DEX
+        BNE SETVRL
+        RTS
+
+SETVAR  LDA TXTP
+        STA DATAP+1
+        LDA HIMEM
+        STA AeStkP
+        LDA HIMEM+1
+        STA AeStkP+1
+        LDA Himem+2
+        STA AeStkP+2
+        LDAIM &00
+        STA DOSTKP
+        STA FORSTP
+        STA SUBSTP
+        STA DATAP
+        RTS
+
+
+PHFacc  ROUT
+        LDA FaccS
+        ANDIM &80
+        STA FaccS
+        SEC
+        LDAIM &05
+        JSR HIDEC
+        BCC #01
+        LDYIM &00
+        LDA FaccX
+        STAIY PPtr
+        INY
+        LDA FaccMA
+        ANDIM &7F
+        ORA FaccS
+        STAIY PPtr
+        INY
+        LDA FaccMB
+        STAIY PPtr
+        INY
+        LDA FaccMC
+        STAIY PPtr
+        INY
+        LDA FaccMD
+        STAIY PPtr
+        RTS
+
+01      LDYIM &00
+        LDA FaccX
+        JSR PhaTs
+        INY
+        LDA FaccMA
+        ANDIM &7F
+        ORA FaccS
+        JSR PhaTs
+        INY
+        LDA FaccMB
+        JSR PhaTs
+        INY
+        LDA FaccMC
+        JSR PhaTs
+        INY
+        LDA FaccMD
+        JMP PhaTs
+
+POPSET  ROUT
+        LDA AeStkP          ; pop the stack and set argp to point to the entry
+        CLC
+        STA ArgP
+        ADCIM 5
+        STA AeStkP
+        LDA AeStkP+1
+        STA ArgP+1
+        ADCIM 0
+        STA AeStkP+1
+        BNE #01
+        INC AeStkP+2
+01      LDAIM &FF           ; stack's up
+        STA ArgP+2
+        RTS
+
+PHTYPE  ROUT
+        BEQ PHSTR
+        BMI PHFacc
+PHACC   SEC
+        LDAIM &04
+        JSR HIDEC
+        BCC #01
+        LDYIM &03
+        LDA IACCH
+        STAIY PPtr
+        DEY
+        LDA IACCN
+        STAIY PPtr
+        DEY
+        LDA IACCM
+        STAIY PPtr
+        DEY
+        LDA IACCL
+        STAIY PPtr
+        RTS
+
+01      LDYIM &03
+        LDA IACCH
+        JSR PhaTs
+        DEY
+        LDA IACCN
+        JSR PhaTs
+        DEY
+        LDA IACCM
+        JSR PhaTs
+        DEY
+        LDA IACCL
+        JMP PhaTs
+
+PHSTR   CLC
+        LDA CLEN
+        JSR HIDEC
+        BCC #02
+        LDY CLEN
+        BEQ #06
+07      LDAAY STRACC-1
+        STAIY PPtr
+        DEY
+        BNE #07
+06      LDA CLEN
+        STAIY PPtr
+        RTS
+
+02      LDY CLEN
+        BEQ #03
+04      LDAAY STRACC-1
+        JSR PhaTs
+        DEY
+        BNE #04
+03      LDA CLEN
+        JMP PhaTs
+
+POPSTR  ROUT
+        LDYIM &00
+        JSR PlaFs
+        STA CLEN
+        TAY
+        BEQ #08
+        ADC AeStkP      ; CC from PlaFs
+        BCC #06         ; room in this page
+        LDA PPtr+1
+        CMPIM &BF
+        BEQ #07         ; Hard one!
+06      LDAIY PPtr      ; set from Plafs
+        STAAY STRACC-1
+        DEY
+        BNE #06
+PopStx  LDYIM 0
+        JSR PlaFS
+08      SEC
+POPN    ADC AeStkP
+        STA AeStkP
+        BCC POPACI
+02      INC AeStkP+1
+        BNE #01
+        INC AeStkP+2
+01      RTS
+
+07      JSR Plafs
+        STAAY STRACC-1
+        DEY
+        BNE #07
+        BEQ PopStx
+
+03      LDYIM &03
+        JSR PlaFs
+        STA IACCH
+        DEY
+        JSR PlaFs
+        STA IACCN
+        DEY
+        JSR PlaFs
+        STA IACCM
+        DEY
+        JSR PlaFs
+        JMP #09
+
+POPACC  LDA AeStkP ; panic at the end of a page - rare enough
+        CMPIM &FD
+        BCS #03
+        STA PPtr
+        LDY AeStkP+1
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDAAY Dat
+        STA PPtr+1
+        LDYIM &03
+        LDAIY PPtr
+        STA IACCH
+        DEY
+        LDAIY PPtr
+        STA IACCN
+        DEY
+        LDAIY PPtr
+        STA IACCM
+        DEY
+        LDAIY PPtr
+09      STA IACCL
+        CLC
+        LDA AeStkP
+        ADCIM &04
+        STA AeStkP
+        BCS #02
+POPACI  RTS
+
+POPWRK  LDXIM Work
+POPX    LDA AeStkP ; panic at the end of a page - rare enough
+        CMPIM &FD
+        BCS #04
+        STA PPtr
+        LDY AeStkP+1
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDAAY Dat
+        STA PPtr+1
+        LDYIM &03
+        LDAIY PPtr
+        STAAX &0003
+        DEY
+        LDAIY PPtr
+        STAAX &0002
+        DEY
+        LDAIY PPtr
+        STAAX &0001
+        DEY
+        LDAIY PPtr
+05      STAAX &0000
+        CLC
+        LDA AeStkP
+        ADCIM &04
+        STA AeStkP
+        BCC PopAcI
+        JMP #02
+
+04      LDYIM &03
+        JSR PlaFs
+        STAAX &0003
+        DEY
+        JSR PlaFs
+        STAAX &0002
+        DEY
+        JSR PlaFs
+        STAAX &0001
+        DEY
+        JSR PlaFs
+        JMP #05
+
+HIDEC   ROUT  ; Pass carry status and value to sub in A
+              ;  returns CC if bank crossed, CS and PPtr,Bank set if not
+        STA MoveTY
+        LDA AeStkP
+        TAY
+        SBC MoveTY
+        STA AeStkP
+        BCS #01
+        STY MoveTY      ; if this is 0, we haven't wrapped
+        LDY AeStkP+1
+        BNE #03
+        DEC AeStkP+2
+        BEQ #04      ; us is fooked
+03      LDA MoveTY   ; if we came from a bondagery, we're OK
+        BEQ #05
+        DEY
+        TYA
+        ANDIM &C0    ; keep top two bits.
+        EOR AeStkP+1
+        CMPIM &3F     ; Top bits left?
+        ROLA
+        EORIM 1       ; toggle carry to get right flag
+        RORA
+05      DEC AeStkP+1
+01      PHP          ; preserve cross status
+        LDY AeStkP+1
+        CPY FSA+1
+        BCC #04
+        BNE #02
+        CMP FSA
+        BCC #04
+02      PLP
+        BCC #06
+        LDA AeStkP
+        STA PPtr
+        LDY AeStkP+1
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDAAY DAT
+        STA PPtr+1
+06      RTS
+
+04     JMP ALLOCR      ; "no rheum"
+
+ACCTOM  LDA IACCL
+        STAAX &0000
+        LDA IACCM
+        STAAX &0001
+        LDA IACCN
+        STAAX &0002
+        LDA IACCH
+        STAAX &0003
+        RTS
+
+CLYADW  CLC
+CLYAp1  TYA
+        ADC Work+6
+        STA Work+6
+        BCC CLYIDW
+        INC Work+7
+CLYIDW  LDYIM &01
+        RTS
+
+LOADER  ROUT
+        JSR OSTHIG
+        TAY
+        LDAIM &FF
+        STY Work+6
+        LDXIM Work
+        JSR MYOSFILE
+ENDER   LDA TXTP           ; TOP := PAGE
+        STA TOP+1
+        LDYIM &00
+        STY TOP
+FNDTOP  LDYIM 0            ; Find new TOP
+        JSR TOPcvt
+        LDAIY PPTR
+        CMPIM &0D
+        BNE BADPRO      
+        INC TOP
+        BNE #01
+        INC TOP+1
+01      JSR TOPcvt  
+        LDAIY PPTR         ; end marker
+        BMI SETTOP
+        LDA TOP
+        CLC
+        ADCIM 2
+        STA TOP
+        BCC #02
+        INC TOP+1 
+02      JSR TOPcvt         ; length byte,  0 => bad
+        LDAIY PPTR
+        BEQ BADPRO         
+        SEC
+        SBCIM 3
+        CLC
+        JSR ADDT 
+        JMP FNDTOP
+
+SETTOP  INY               ; Y:=1
+        CLC
+YADT    TYA
+ADDT    ADC TOP
+        STA TOP
+        BCC ENDADT
+        INC TOP+1
+ENDADT  LDYIM &01
+        RTS
+
+BADPRO  JSR VSTRNG
+        = &0D,"Bad program",&0D
+        NOP
+        JMP CLRSTK
+
+OSSTRG  LDAIM STRACC
+        STA Work
+        LDAIM :MSB: STRACC 
+        STA Work+1
+OSSTRT  LDY CLEN
+        LDAIM &0D
+        STAAY STRACC
+        RTS
+
+OSCL    JSR OSTHIF
+        LDXIM STRACC
+        LDYIM :MSB: STRACC 
+        JSR OSCLI
+        JMP NXT
+
+OSTHIE  JMP LETM
+
+OSTHIF  JSR AEEXPR
+        BNE OSTHIE
+        JSR OSSTRG
+        JMP FDONE
+
+OSTHIG  JSR OSTHIF
+        DEY
+        STY Work+2
+        LDA TXTP
+        STA Work+3
+        LDXIM &01  ; MHAO
+        LDYIM &00
+        STX Work+4
+        STY Work+5
+        LDAIM &00
+        RTS
+
+        LNK Bas10

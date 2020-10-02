@@ -1,0 +1,949 @@
+        TTL     > Bas08
+
+;    Fcon converts from floating point to a string in stracc
+
+
+FconHX  ROUT
+        TYA
+        BPL #01
+        JSR IFIX
+01      LDXIM &00
+        LDYIM &00
+02      LDAAY Iacc
+        PHA
+        ANDIM &0F
+        STAAX Work+8
+        PLA
+        LSRA
+        LSRA
+        LSRA
+        LSRA
+        INX
+        STAAX Work+8
+        INX
+        INY
+        CPYIM &04
+        BNE #02
+03      DEX
+        BEQ #04
+        LDAAX Work+8
+        BEQ #03
+04      LDAAX Work+8
+        CMPIM &0A
+        BCC #05
+        ADCIM &06
+05      ADCIM "0"
+        JSR #44
+        DEX
+        BPL #04
+        RTS
+
+06      BPL #07
+        LDAIM "-"
+        STA FaccS
+        JSR #44
+07      LDA FaccX
+        CMPIM &81 ; WANT TO GET INTO RANGE 1.0 TO 9.9999
+        BCS #15
+        JSR FTENFX ; MULT BY 10.0
+        DEC FPRTDX ; AND ADJUST EXPONENT
+        JMP #07  ; UNTIL NORMAL
+
+Fcon    LDX VARL+2 ; flag forcing E
+        CPXIM &03
+        BCC #08
+        LDXIM &00  ; DEFAULT TO "G"" "FORMAT
+08      STX Work
+        LDA VARL+1
+        BEQ #09
+        CMPIM &0A
+        BCS FconA
+;   In G,E formats varl is no. of sig figs >0
+;   In F format it is no. of decimals and can e >=0
+        BCC #10
+
+09      CPXIM &02
+        BEQ #10
+FconA   LDAIM &0A ; enter here for str&, having set Work to 0
+10      STA Work+1
+        STA FDIGS
+        LDAIM &00
+        STA CLEN
+        STA FPRTDX
+        BIT PRINTF
+        BMI FconHX
+        TYA
+        BMI #11
+        JSR IFLT
+11      JSR FTST
+        BNE #06
+        LDA Work
+        BNE #12
+        LDAIM "0"
+        JMP #44   
+
+12      JMP #23
+
+14      JSR FONE
+        BNE #13   ; FPRTE+3
+
+15      CMPIM &84 ; EXPONENT OF 9.99
+        BCC #17 ;      1.0 TO 7.9999 ALL OK
+        BNE #16      ; EXPONENT 85 OR MORE
+        LDA FaccMA     ; FINE CHECK IF X=84
+        CMPIM &A0
+        BCC #17      ; 8.0000 TO 9.9999
+16      JSR FTENFQ  ; DIVIDE BY 10.0
+13      INC FPRTDX
+        JMP #07
+
+17      LDA FaccMG
+        STA TYPE
+        JSR STARGA
+        LDA FDIGS
+        STA Work+1
+        LDX Work
+        CPXIM &02
+        BNE #18     ; NOT "F"" "FORMAT
+        ADC FPRTDX     ; FIX UP THE PRECISION
+        BMI #24
+        STA Work+1
+        CMPIM &0B
+        BCC #18     ; PRECISION STILL REASONABLE
+        LDAIM &0A
+        STA Work+1
+        LDAIM &00
+        STA Work       ; TREAT AS "G"" "FORMAT
+18      JSR FCLR
+        LDAIM &A0
+        STA FaccMA
+        LDAIM &83
+        STA FaccX       ; 5.0 -> ACC
+        LDX Work+1
+        BEQ #20
+19      JSR FTENFQ
+        DEX
+        BNE #19      ;create .00,,005 const
+20      JSR ARGA
+        JSR FLDW
+        LDA TYPE
+        STA FWRKMG
+        JSR FADDW1
+21      LDA FaccX
+        CMPIM &84
+        BCS #22
+        ROR FaccMA
+        ROR FaccMB
+        ROR FaccMC
+        ROR FaccMD
+        ROR FaccMG
+        INC FaccX
+        BNE #21
+22      LDA FaccMA
+        CMPIM &A0     ; SEE IF UNNORMALIZED
+        BCS #14    ; FIX UP IF SO
+        LDA Work+1
+        BNE #25
+
+23      CMPIM &01
+        BEQ #30
+24      JSR FCLR
+        LDAIM &00
+        STA FPRTDX
+        LDA FDIGS
+        STA Work+1
+        INC Work+1
+
+;    AT #25 THE EXPONENT IS
+;    &84, SO THE TOP DIGIT OF THE
+;    ACC IS THE FIRST DIG TO PRINT
+
+25      LDAIM &01
+        CMP Work
+        BEQ #30
+        LDY FPRTDX
+        BMI #26
+        CPY Work+1
+        BCS #30  ; USE SCIENTIFIC IS   <1.0 OR > 10^DIGITS
+        LDAIM &00   ;USE F TYPE FORMAT
+        STA FPRTDX
+        INY
+        TYA
+        BNE #30
+26      LDA Work
+        CMPIM &02
+        BEQ #27  ; F FORMAT CASE
+        LDAIM &01
+        CPYIM &FF
+        BNE #30   ; SET E FORMAT
+27      LDAIM "0"
+        JSR #44
+        LDAIM "."
+        JSR #44
+        LDAIM "0"
+28      INC FPRTDX
+        BEQ #29
+        JSR #44
+        BNE #28
+29      LDAIM &80
+
+30      STA FPRTWN
+31      LDA FaccMA
+        LSRA
+        LSRA
+        LSRA
+        LSRA
+        JSR #43
+        LDA FaccMA
+        ANDIM &0F
+        STA FaccMA
+        JSR FTENX ;   GET NEXT DIGIT READY
+        DEC FPRTWN
+        BNE #32
+        LDAIM "."
+        JSR #44
+32      DEC Work+1
+        BNE #31
+        LDY Work
+        DEY
+        BEQ #36
+        DEY
+        BEQ #35
+        LDY CLEN
+33      DEY
+        LDAAY STRACC   ; inspect for and remove trailing zeroes
+        CMPIM "0"
+        BEQ #33
+        CMPIM "."
+        BEQ #34
+        INY
+34      STY CLEN
+35      LDA FPRTDX
+        BEQ #39       ; EXPONENT=0
+36      LDAIM "E"
+        JSR #44
+        LDA FPRTDX
+        BPL #37
+        LDAIM "-"
+        JSR #44
+        SEC
+        LDAIM &00
+        SBC FPRTDX
+37      JSR #40
+        LDA Work
+        BEQ #39
+        LDAIM " "
+        LDY FPRTDX
+        BMI #38
+        JSR #44
+38      CPXIM &00
+        BNE #39
+        JMP #44
+
+39      RTS
+
+
+;              PRINT AC IN DECIMAL UNSIGNED
+
+40      LDXIM &FF
+        SEC
+41      INX
+        SBCIM &0A
+        BCS #41
+        ADCIM &0A
+        PHA
+        TXA
+        BEQ #42
+        JSR #43
+42      PLA
+
+43      ORAIM "0"       ; print digit
+
+44      STX Work+4      ; put ch in buffer
+        LDX CLEN
+        STAAX STRACC
+        LDX Work+4
+        INC CLEN
+        RTS
+
+;    READ ROUTINES
+
+FRDDXX  ROUT
+        CLC
+        STX FaccMG
+        JSR FTST
+        LDAIM &FF
+        RTS
+
+FRDD    LDXIM &00
+        STX FaccMA
+        STX FaccMB
+        STX FaccMC
+        STX FaccMD
+        STX FaccMG
+        STX FRDDDP  ; DECIMAL POINT FLAG
+        STX FRDDDX  ; DECIMAL EXPONENT
+        CMPIM "."    ; Y pointing to this character
+        BEQ #02  ; LEADING DECIMAL POINT
+        CMPIM &3A
+        BCS FRDDXX
+        SBCIM &2F
+        BMI FRDDXX
+        STA FaccMG
+01      INY
+;        JSR LAeLnIY
+        LDA UpDown
+        BEQ #30
+        STY MoveTY
+        TYA
+        CLC
+        ADC AeLine
+        STA PPtr
+        LDA AeLine+1
+        ADCIM 0
+        TAY
+        LDAAY   OurRam
+        STAZ    &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA PPtr+1
+        LDYIM 0
+        LDAIY PPtr
+        LDY MoveTY
+        JMP #31
+
+30      LDAIY AeLine
+31      CMPIM "."
+        BNE #03
+02      LDA FRDDDP  ; SEEN BEFORE?
+        BNE #07         ; SECOND ONE IS END OF NUMBER
+        INC FRDDDP        ; SET FLAG
+        BNE #01         ; GET MORE CHARS
+03      CMPIM "E"
+        BEQ #06        ; START OF EXPONENT
+        CMPIM &3A
+        BCS #07
+        SBCIM &2F
+        BCC #07         ; END OF NUMBER
+        LDX FaccMA
+        CPXIM &18
+        BCC #04         ; LENGTH OK
+        LDX FRDDDP
+        BNE #01         ; JUST IGNORE IF AFTER .
+        INC FRDDDX        ; OTHERWISE INC TENS
+        BCS #01
+04      LDX FRDDDP
+        BEQ #05         ; NO . YET
+        DEC FRDDDX
+05      JSR FTENX    ; MULTIPLY MANTISSA (carry!!!!!)
+        ADC FaccMG
+        STA FaccMG
+        BCC #01
+        INC FaccMD
+        BNE #01
+        INC FaccMC
+        BNE #01
+        INC FaccMB
+        BNE #01
+        INC FaccMA
+        BNE #01
+06      JSR #16
+        ADC FRDDDX
+        STA FRDDDX
+07      STY AECUR
+        LDA FRDDDX
+        ORA FRDDDP
+        BEQ #14
+        JSR FTST          ; WAS IT ZERO?
+        BEQ #12        ; IF SO EXIT AT ONCE
+08      LDAIM &A8
+        STA FaccX
+        LDAIM &00
+        STA FaccXH
+        STA FaccS
+        JSR FNRM
+
+;    NOW I HAVE TO MULT OR DIV
+;    BY POWER OF TEN GIVEN IN
+;    FRDDDX
+
+        LDA FRDDDX
+        BMI #10
+        BEQ #11
+09      JSR FTENFX  ; TIMES 10.0
+        DEC FRDDDX
+        BNE #09
+        BEQ #11
+10      JSR FTENFQ   ; DIVIDE 10.0
+        INC FRDDDX
+        BNE #10
+11      JSR FTIDY     ; ROUND, CHECK OVERFLOW
+12      SEC
+        LDAIM &FF
+        RTS
+
+14      LDA FaccMB
+        STA IaccH
+        ANDIM &80
+        ORA FaccMA
+        BNE #08
+        LDA FaccMG
+        STA IaccL
+        LDA FaccMD
+        STA IaccM
+        LDA FaccMC
+        STA IaccN
+        LDAIM &40
+        SEC
+        RTS
+
+15      JSR #17
+        EORIM &FF
+        SEC
+        RTS
+
+16      INY
+        JSR LAeLnIY
+        CMPIM "-"
+        BEQ #15
+        CMPIM "+"
+        BNE #18
+17      INY
+        JSR LAeLnIY
+18      CMPIM &3A
+        BCS #20
+        SBCIM &2F
+        BCC #20
+        STA FRDDW
+        INY
+        JSR LAeLnIY
+        CMPIM &3A
+        BCS #19
+        SBCIM &2F
+        BCC #19
+        INY
+        STA FTMPMA
+        LDA FRDDW
+        ASLA
+        ASLA
+        ADC FRDDW
+        ASLA
+        ADC FTMPMA
+        RTS
+
+19      LDA FRDDW
+        CLC
+        RTS
+
+20      LDAIM &00
+        CLC
+        RTS
+
+;    ADD A+CY TO ACC IN GUARD
+;    DIGIT POSN.
+;    ADD WRK+CY TO ACC, LEAVE
+;   RESULT IN ACC, DON"T" DISTURB WRK
+
+FPLW    ROUT
+        LDA FaccMG
+        ADC FWRKMG
+        STA FaccMG
+        LDA FaccMD
+        ADC FWRKMD
+        STA FaccMD
+        LDA FaccMC
+        ADC FWRKMC
+        STA FaccMC
+        LDA FaccMB
+        ADC FWRKMB
+        STA FaccMB
+        LDA FaccMA
+        ADC FWRKMA
+        STA FaccMA
+;    CY IS SET ON CARRY OUT OF
+;    FaccMA AND FWRKMA
+        RTS
+
+;    MULTIPLY Facc BY 10
+
+FTENX   PHA
+        LDX FaccMD
+        LDA FaccMA
+        PHA
+        LDA FaccMB
+        PHA
+        LDA FaccMC
+        PHA
+        LDA FaccMG
+        ASLA
+        ROL FaccMD
+        ROL FaccMC
+        ROL FaccMB
+        ROL FaccMA
+        ASLA
+        ROL FaccMD
+        ROL FaccMC
+        ROL FaccMB
+        ROL FaccMA
+        ADC FaccMG
+        STA FaccMG
+        TXA
+        ADC FaccMD
+        STA FaccMD
+        PLA
+        ADC FaccMC
+        STA FaccMC
+        PLA
+        ADC FaccMB
+        STA FaccMB
+        PLA
+        ADC FaccMA
+        ASL FaccMG
+        ROL FaccMD
+        ROL FaccMC
+        ROL FaccMB
+        ROLA
+        STA FaccMA
+        PLA
+        RTS
+
+;    FTST SETS N,Z FLAGS ON ACC
+;    TIDIES UP AC IF ZERO
+
+FTST    ROUT
+        LDA FaccMA
+        ORA FaccMB
+        ORA FaccMC
+        ORA FaccMD
+        ORA FaccMG
+        BEQ #01  ; IT IS ZERO
+        LDA FaccS
+        BNE #02
+        LDAIM &01  ; NEEDED TO FORCE..
+        RTS        ;  .. NONZERO IF SIGN BYTE
+
+01      STA FaccS
+        STA FaccX
+        STA FaccXH ; STANDARD STATE ZERO
+02      RTS
+
+;    MULT AC BY 10.0
+;    FX:=FX+3
+;    FW:=Facc
+;    FW:=FW>>2
+;    Facc:=Facc+FW
+;    IF CARRY THEN &(
+;      Facc:=Facc>>1;
+;      FX:=FX+1 &)
+
+FTENFX  ROUT
+        CLC
+        LDA FaccX
+        ADCIM &03
+        STA FaccX
+        BCC #01
+        INC FaccXH
+01      JSR FTOW  ; COPY TO W
+        JSR FASRW
+        JSR FASRW
+FPLWF   JSR FPLW
+FRENRM  BCC #02
+        ROR FaccMA
+        ROR FaccMB
+        ROR FaccMC
+        ROR FaccMD
+        ROR FaccMG
+        INC FaccX
+        BNE #02
+        INC FaccXH
+02      RTS
+
+FTOW    LDA FaccS
+        STA FWRKS
+        LDA FaccXH
+        STA FWRKXH
+        LDA FaccX
+        STA FWRKX
+        LDA FaccMA
+        STA FWRKMA
+        LDA FaccMB
+        STA FWRKMB
+        LDA FaccMC
+        STA FWRKMC
+        LDA FaccMD
+        STA FWRKMD
+        LDA FaccMG
+        STA FWRKMG
+        RTS
+
+FTOWAS  JSR FTOW
+FASRW   LSR FWRKMA
+        ROR FWRKMB
+        ROR FWRKMC
+        ROR FWRKMD
+        ROR FWRKMG
+        RTS
+
+;    FTENFQ DIVIDE AC BY 10.0
+;    FX:=FX-4; WRK:=ACC; WRK:=WRK>>1; ACC:=ACC+WRK
+;    ADJUST IF CARRY
+;    WRK:=ACC; WRK:=WRK>>4; ACC:=ACC+WRK
+;    ADJUST IF CARRY
+;    WRK:=ACC>>8; ACC:=ACC>>8
+;    ADJUST IF CARRY
+;    WRK:=ACC>>16; ACC:=ACC+WRK
+;    ADJUST IF CARRY
+;    ACC:=ACC+(ACC>>32)
+;    ADJUST IF CARRY
+
+FTENFQ  ROUT
+        SEC
+        LDA FaccX
+        SBCIM &04
+        STA FaccX
+        BCS #01
+        DEC FaccXH
+01      JSR FTOWAS
+        JSR FPLWF   ; * 0.00011
+        JSR FTOWAS
+        JSR FASRW
+        JSR FASRW
+        JSR FASRW
+        JSR FPLWF   ; * 0.000110011
+        LDAIM &00
+        STA FWRKMA
+        LDA FaccMA
+        STA FWRKMB
+        LDA FaccMB
+        STA FWRKMC
+        LDA FaccMC
+        STA FWRKMD
+        LDA FaccMD
+        STA FWRKMG
+        LDA FaccMG
+        ROLA        ; SET CARRY BIT PROPERLY
+        JSR FPLWF   ; OK TO 16 BITS
+        LDAIM &00
+        STA FWRKMA
+        STA FWRKMB
+        LDA FaccMA
+        STA FWRKMC
+        LDA FaccMB
+        STA FWRKMD
+        LDA FaccMC
+        STA FWRKMG
+        LDA FaccMD
+        ROLA
+        JSR FPLWF
+        LDA FaccMB
+        ROLA
+        LDA FaccMA
+FPLNF   ADC FaccMG
+        STA FaccMG
+        BCC #02
+        INC FaccMD
+        BNE #02
+        INC FaccMC
+        BNE #02
+        INC FaccMB
+        BNE #02
+        INC FaccMA
+        BNE #02
+        JMP FRENRM
+
+02      RTS
+
+IFLT    ROUT
+        LDXIM &00
+        STX FaccMG
+        STX FaccXH
+        LDA IaccH
+        BPL #01
+        JSR COMPNO
+        LDXIM &FF
+01      STX FaccS
+        LDA IaccL
+        STA FaccMD
+        LDA IaccM
+        STA FaccMC
+        LDA IaccN
+        STA FaccMB
+        LDA IaccH
+        STA FaccMA
+        LDAIM &A0
+        STA FaccX
+        JMP FNRM
+
+02      STA FaccS
+        STA FaccX
+        STA FaccXH
+03      RTS
+
+
+;    FLTACC FLOATS 8 BIT ACC
+
+FLTACC  PHA
+        JSR FCLR
+        PLA
+        BEQ #03  ; DONE IF 0.0
+        BPL #04  ; >0.0
+        STA FaccS  ; SET SIGN IN ACC
+        LDAIM &00
+        SEC
+        SBC FaccS
+04      STA FaccMA
+        LDAIM &88
+        STA FaccX  ; FUDGE EXPONENT
+
+;    FNRM NORMALIZES THE AC
+;    USING 16 BIT EXPONENT, SO
+;    NO WORRY ABOUT EXPONENT OVERFLOW
+
+FNRM    LDA FaccMA
+        BMI #03
+        ORA FaccMB
+        ORA FaccMC
+        ORA FaccMD
+        ORA FaccMG
+        BEQ #02
+        LDA FaccX
+06      LDY FaccMA
+        BMI #03
+        BNE #07
+        LDX FaccMB
+        STX FaccMA
+        LDX FaccMC
+        STX FaccMB
+        LDX FaccMD
+        STX FaccMC
+        LDX FaccMG
+        STX FaccMD
+        STY FaccMG
+        SEC
+        SBCIM &08  ; MOVED BY A BYTE
+        STA FaccX
+        BCS #06  ; TRY AGAIN
+        DEC FaccXH
+        BCC #06
+05      LDY FaccMA
+        BMI #03  ; FULLY NORMALIZED
+07      ASL FaccMG
+        ROL FaccMD
+        ROL FaccMC
+        ROL FaccMB
+        ROL FaccMA
+        SBCIM 0   ; carry clear so 1
+        STA FaccX
+        BCS #05
+        DEC FaccXH
+        BCC #05
+
+FLDW    ROUT
+        BIT ArgP+2
+        BMI #01
+04      LDYIM 4
+        LDAIY ArgP
+        STA FWRKMD
+        DEY
+        LDAIY ArgP
+        STA FWRKMC
+        DEY
+        LDAIY ArgP
+        STA FWRKMB
+        DEY
+        LDAIY ArgP
+        STA FWRKS
+        DEY
+        LDAIY ArgP
+02      STA FWRKX
+        STY FWRKMG
+        STY FWRKXH
+        ORA FWRKS
+        ORA FWRKMB
+        ORA FWRKMC
+        ORA FWRKMD
+        BEQ #05
+        LDA FWRKS
+        ORAIM &80
+05      STA FWRKMA
+        RTS
+
+01      LDA ArgP        ; really hard?
+        CMPIM &FC
+        BCS #03
+        LDY ArgP+1
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDAAY DAT
+        STA ArgP+1
+        BMI #04 ; always
+
+03      LDYIM 4
+        JSR LApIY
+        STA FWRKMD
+        DEY
+        JSR LApIY
+        STA FWRKMC
+        DEY
+        JSR LApIY
+        STA FWRKMB
+        DEY
+        JSR LApIY
+        STA FWRKS
+        DEY
+        JSR LApIY
+        JMP #02
+
+STARGB  ROUT
+        LDAIM :LSB: FWSB
+        BNE FStap
+
+STARGC  LDAIM :LSB: FWSC
+        BNE FStap
+
+STARGA  LDAIM :LSB: FWSA
+
+FStap    STA ARGP
+        LDAIM :MSB: FWSA
+        STA ARGP+1
+        LDAIM 0
+        STA ArgP+2
+        BEQ #02
+
+; FSTA STORES ACC
+
+FSTA    BIT ArgP+2
+        BMI #03
+02      LDYIM &00
+        LDA FaccX
+        STAIY ArgP
+        INY
+        LDA FaccS
+        ANDIM &80
+        STA FaccS ; TIDY UP SIGN BYTE
+        LDA FaccMA
+        ANDIM &7F
+        ORA FaccS
+        STAIY ArgP
+        LDA FaccMB
+        INY
+        STAIY ArgP
+        LDA FaccMC
+        INY
+        STAIY ArgP
+        LDA FaccMD
+        INY
+        STAIY ArgP
+        RTS
+
+03      LDA ArgP
+        CMPIM &FC
+        BCS #05
+        LDY ArgP+1
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDAAY DAT
+        STA ArgP+1
+        BMI #02 ; always
+
+05      LDYIM 0
+        LDA FaccX
+        JSR #04
+        INY
+        LDA FaccS
+        ANDIM &80
+        STA FaccS ; TIDY UP SIGN BYTE
+        LDA FaccMA
+        ANDIM &7F
+        ORA FaccS
+        JSR #04
+        LDA FaccMB
+        INY
+        JSR #04
+        LDA FaccMC
+        INY
+        JSR #04
+        LDA FaccMD
+        INY
+
+04      PHA
+        STY MoveTY
+        TYA
+        CLC
+        ADC ArgP
+        STA PPtr
+        LDA ArgP
+        JMP Scom
+
+
+LDARGA  JSR ARGA
+
+FLDA    ROUT
+        BIT ArgP+2
+        BMI #01
+04      LDYIM &04
+        LDAIY ArgP
+        STA FaccMD
+        DEY    
+        LDAIY ArgP
+        STA FaccMC
+        DEY
+        LDAIY ArgP
+        STA FaccMB
+        DEY
+        LDAIY ArgP
+        STA FaccS
+        DEY
+        LDAIY ArgP
+02      STA FaccX
+        STY FaccMG
+        STY FaccXH
+        ORA FaccS
+        ORA FaccMB
+        ORA FaccMC
+        ORA FaccMD
+        BEQ #05
+        LDA FaccS
+        ORAIM &80
+05      STA FaccMA
+        RTS
+
+01      LDA ArgP        ; really hard?
+        CMPIM &FC
+        BCS #03
+        LDY ArgP+1
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDAAY DAT
+        STA ArgP+1
+        BMI #04 ; always
+
+03      LDYIM 4
+        JSR LApIY
+        STA FaccMD
+        DEY
+        JSR LApIY
+        STA FaccMC
+        DEY
+        JSR LApIY
+        STA FaccMB
+        DEY
+        JSR LApIY
+        STA FaccS
+        DEY
+        JSR LApIY
+        JMP #02
+
+
+LApIY   STY MoveTY
+        TYA
+        CLC
+        ADC ArgP
+        STA PPtr
+        LDA ArgP+1
+        JMP lcom
+
+        LNK     BAS09

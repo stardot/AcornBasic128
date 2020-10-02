@@ -1,0 +1,182 @@
+          TTL > BasVars      declarations
+
+          ORG &3000
+
+REPPTR * &00FD
+ESCFLG * &00FF
+BREAK  * &0202
+LOMEM  * &0000
+FSA    * LOMEM +2
+AESTKP * FSA   +2
+HIMEM  * AESTKP+3
+LOLINO * HIMEM +3
+HILINO * LOLINO+1
+CURSOR * HILINO+1
+LINE   * CURSOR+1
+SEED   * LINE  +2
+TOP    * SEED  +5
+PRINTS * TOP   +2
+PRINTF * PRINTS+1
+OSCLI  * &FFF7
+OSWRCH * &FFEE
+OSASCI * &FFE3
+OSCRLF * &FFE7
+OSRDCH * &FFE0
+OSFILE * &FFDD  ; replaced by our own version - THINK before use!!
+OSARGS * &FFDA
+OSBGET * &FFD7
+OSBPUT * OSBGET-3
+OSFIND * OSBPUT-6
+OSBYTE * &FFF4
+OSWORD * &FFF1
+OsGbPb * &FFD1
+WRCVEC * &020E
+ERRORL * PRINTF+1
+ERRORH * ERRORL+1
+TXTP   * ERRORH+1
+AELINE * TXTP  +1
+AECUR  * AELINE+2
+DATAP  * AECUR +1
+TALLY  * DATAP +2
+LISTOP * TALLY +1
+TRFLAG * LISTOP+1
+TRNUM  * TRFLAG+1
+WIDTHV * TRNUM +2
+DOSTKP * WIDTHV+1
+SUBSTP * DOSTKP+1
+FORSTP * SUBSTP+1
+TYPE   * FORSTP+1
+BYTESM * TYPE  +1
+OPCODE * BYTESM+1
+IACC   * OPCODE+1
+IACCL  * IACC
+IACCM  * IACC  +1
+IACCN  * IACC  +2
+IACCH  * IACC  +3
+FACCS  * IACC  +4
+FACCXH * FACCS +1
+FACCX  * FACCXH+1
+FACCMA * FACCX +1
+FACCMB * FACCMA+1
+FACCMC * FACCMB+1
+FACCMD * FACCMC+1
+FACCMG * FACCMD+1
+CLEN   * FACCMG+1
+WORK   * CLEN  +1
+MODE   * WORK  +4
+CONSTA * MODE  +1
+MOVAD  * WORK  +6
+FWRKS  * WORK  +4
+FWRKXH * FWRKS +1
+FWRKX  * FWRKXH+1
+FWRKMA * FWRKX +1
+FWRKMB * FWRKMA+1
+FWRKMC * FWRKMB+1
+FWRKMD * FWRKMC+1
+FWRKMG * FWRKMD+1
+FTMPMA * FWRKMG+1
+FTMPMB * FTMPMA+1
+FTMPMC * FTMPMB+1
+FTMPMD * FTMPMC+1
+FTMPMG * FTMPMD+1
+FRDDDP * FTMPMG+1
+FRDDDX * FRDDDP+1
+FPRTDX * FRDDDX
+FRDDW  * FRDDDX+1
+FQUAD  * FRDDW
+ARGP   * FQUAD +1
+FPRTWY * ARGP  +3
+FPRTWN * FPRTWY+1
+FDIGS  * FPRTWN
+COEFP  * ARGP  +3
+NEWVAR * COEFP +2
+
+RamIndex * NewVar+1   ; count of RAMS available
+PPTR   * RamIndex     ; a two byte indirection pointer 
+PPTR2  * PPTR    +2   ; a two byte indirection pointer
+MoveTY * PPtr2
+UpDown * PPtr2   +2   ; Upstairs/Downstairs flag
+LVud   * UpDown  +1
+ErrUd  * LVud    +1
+AsmHi  * ErrUd   +1
+ProcPos * AsmHi  +1
+Iwrk   * ProcPos +1
+IwrkL  * Iwrk
+IwrkM  * IwrkL+1
+IwrkN  * IwrkM+1
+IwrkH  * IwrkN+1
+LookCrit * IWrk+4
+
+VARL * &0400
+PC   * VARL + &40
+FWSA * VARL + &6C
+FWSB * FWSA + 5
+FWSC * FWSB + 5
+FWSD * FWSC + 5
+VARPTR * &0480
+
+CalWom * &500          ; last Rom called - break handler pages it back in
+VarLat * &501          ; uses &40 bytes - I fink dats OK.
+
+DOADL  * &5A4          ; probably
+DOADH  * DOADL + &14
+SUBADL * DOADH + &14
+SUBADH * SUBADL+ &1A
+
+
+STRACC * &0600
+BUFFER * &0700
+
+FORTOP * &F0
+SUBTOP * &1A
+DOTOP  * &14
+
+OurRam  * &3000-256     ; translation table
+GbBuff  * OurRam-256    ; might as well keep pages aligned
+GbpbBlk * GbBuff-&10
+ForInL  * GbPbBlk-&F0
+ForInH  * ForInL + 1
+ForInUd * ForInH +1
+ForInT  * ForInUd + 1
+ForSpL  * ForInT + 1
+ForSpM  * ForSpL + 1
+ForSpN  * ForSpM + 1
+ForSpH  * ForSpN + 1
+ForSpE  * ForSpH + 1
+ForLmL  * ForSpE + 1
+ForLmM  * ForLmL + 1
+ForLmN  * ForLmM + 1
+ForLmH  * ForLmN + 1
+ForLmE  * ForLmH + 1
+ForAdL  * ForLmE + 1
+ForAdH  * ForAdL + 1
+BrkMS   * ForInL - 256
+
+
+        MACRO
+$l      GENAD   $a
+$l      LDXIM   :LSB: $a
+        LDYIM   :MSB: $a
+        MEND
+
+DAT     ; Address Translation table - page aligned
+        ; (DAT+x) = (x AND &3F) OR &80
+
+        =       &80,&81,&82,&83,&84,&85,&86,&87,&88,&89,&8A,&8B,&8C,&8D,&8E,&8F
+        =       &90,&91,&92,&93,&94,&95,&96,&97,&98,&99,&9A,&9B,&9C,&9D,&9E,&9F
+        =       &A0,&A1,&A2,&A3,&A4,&A5,&A6,&A7,&A8,&A9,&AA,&AB,&AC,&AD,&AE,&AF
+        =       &B0,&B1,&B2,&B3,&B4,&B5,&B6,&B7,&B8,&B9,&BA,&BB,&BC,&BD,&BE,&BF
+        =       &80,&81,&82,&83,&84,&85,&86,&87,&88,&89,&8A,&8B,&8C,&8D,&8E,&8F
+        =       &90,&91,&92,&93,&94,&95,&96,&97,&98,&99,&9A,&9B,&9C,&9D,&9E,&9F
+        =       &A0,&A1,&A2,&A3,&A4,&A5,&A6,&A7,&A8,&A9,&AA,&AB,&AC,&AD,&AE,&AF
+        =       &B0,&B1,&B2,&B3,&B4,&B5,&B6,&B7,&B8,&B9,&BA,&BB,&BC,&BD,&BE,&BF
+        =       &80,&81,&82,&83,&84,&85,&86,&87,&88,&89,&8A,&8B,&8C,&8D,&8E,&8F
+        =       &90,&91,&92,&93,&94,&95,&96,&97,&98,&99,&9A,&9B,&9C,&9D,&9E,&9F
+        =       &A0,&A1,&A2,&A3,&A4,&A5,&A6,&A7,&A8,&A9,&AA,&AB,&AC,&AD,&AE,&AF
+        =       &B0,&B1,&B2,&B3,&B4,&B5,&B6,&B7,&B8,&B9,&BA,&BB,&BC,&BD,&BE,&BF
+        =       &80,&81,&82,&83,&84,&85,&86,&87,&88,&89,&8A,&8B,&8C,&8D,&8E,&8F
+        =       &90,&91,&92,&93,&94,&95,&96,&97,&98,&99,&9A,&9B,&9C,&9D,&9E,&9F
+        =       &A0,&A1,&A2,&A3,&A4,&A5,&A6,&A7,&A8,&A9,&AA,&AB,&AC,&AD,&AE,&AF
+        =       &B0,&B1,&B2,&B3,&B4,&B5,&B6,&B7,&B8,&B9,&BA,&BB,&BC,&BD,&BE,&BF
+        
+        LNK     BAS01

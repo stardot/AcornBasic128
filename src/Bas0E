@@ -1,0 +1,922 @@
+        TTL     > Bas0E errors next for goto on
+
+
+FNLINO  LDYIM &00
+        STY LOLINO
+        STY HILINO
+        LDX TXTP
+        STX Work+1
+        STY Work
+        LDX UpDown      ; do nowt for downstairs.
+        BEQ FNLINX
+        LDX LINE
+FIND    JSR GETWRK
+        CMPIM &0D
+        BNE CHKA
+        CPX Work
+        LDA LINE+1
+        SBC Work+1
+        BCC FNLINX
+        JSR GETWRK
+        ORAIM &00
+        BMI FNLINX
+        STA HILINO
+        JSR GETWRK
+        STA LOLINO
+        JSR GETWRK
+CHKA    CPX Work
+        LDA LINE+1
+        SBC Work+1
+        BCS FIND
+FNLINX  RTS
+
+BREK    ROUT
+        LDA CalWom
+        STA &F4
+        STA &FE30
+        LDYIM 0
+        LDAIY RepPtr    ; errno
+        STAAY BrkMS
+02      INY
+        LDAIY RepPtr    ; errtext
+        STAAY BrkMs
+        BNE #02
+        JSR FNLINO
+        STY TRFLAG
+        LDA BrkMS
+        BNE #01          ; not the fatal error
+        LDAIM BASERR
+        STA ERRORL
+        LDAIM :MSB: BASERR
+        STA ERRORH
+        LDAIM 0
+        STA ErrUd
+01      LDA ERRORL
+        STA LINE
+        LDA ERRORH
+        STA LINE+1
+        LDA ErrUd
+        STA UpDown
+        JSR SETVAR
+        TAX
+        STX CURSOR
+        LDAIM &DA
+        JSR OSBYTE
+        LDAIM &7E
+        JSR OSBYTE
+        LDXIM &FF
+        STX BYTESM
+        TXS
+        JMP STMT
+
+
+BASERR
+        = TREPORT
+        = ":"
+        = TIF, TERL, TPRINT, &22, " at line ", &22, ";", TERL, ":", TEND
+        = TELSE, TPRINT, ":", TEND
+        = &0D
+
+BEEP    JSR ASEXPR
+        LDXIM &03
+BEEPLP  LDA IACCL
+        PHA
+        LDA IACCM
+        PHA
+        TXA
+        PHA
+        JSR INCMEX
+        PLA
+        TAX
+        DEX
+        BNE BEEPLP
+        JSR AEDONE
+        LDA IACCL
+        STA Work+6
+        LDA IACCM
+        STA Work+7
+        LDYIM &07
+        LDXIM &05
+        BNE ENVELL
+ENVEL   JSR ASEXPR
+        LDXIM &0D
+ENVELP  LDA IACCL
+        PHA
+        TXA
+        PHA
+        JSR INCMEX
+        PLA
+        TAX
+        DEX
+        BNE ENVELP
+        JSR AEDONE
+        LDA IACCL
+        STA Work +&0D
+        LDXIM &0C
+        LDYIM &08
+ENVELL  PLA
+        STAAX Work
+        DEX
+        BPL ENVELL
+        TYA
+        LDXIM Work
+        LDYIM &00
+        JSR OSWORD
+        JMP NXT
+
+WIDTH   ROUT
+        JSR ASEXPR
+        JSR AEDONE
+        LDY IACCL
+        DEY
+        STY WIDTHV
+        JMP NXT
+
+01      JMP LETM
+
+STEXPR  JSR EXPR
+STORE   JSR POPWRK
+STORF   LDA Work+2              ; want up/down flag in Work+3 by now
+        CMPIM &05
+        BEQ #04
+        LDA TYPE
+        BEQ #01
+        BPL #02
+        JSR IFIX
+02      LDY Work+3
+        BEQ #05
+        LDY Work+1
+        LDAAY Dat
+        CMPIM &BF
+        BEQ #06
+        STA Work+1
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDYIM 0
+05      LDA IACCL
+        STAIY Work
+        LDA Work+2
+        BEQ #03
+        LDA IACCM
+        INY
+        STAIY Work
+        LDA IACCN
+        INY
+        STAIY Work
+        LDA IACCH
+        INY
+        STAIY Work
+03      RTS
+
+06      LDYIM &00
+        LDA IACCL
+        JSR SwUpIY
+        LDA Work+2
+        BEQ #03
+        LDA IACCM
+        INY
+        JSR SwUpIY
+        LDA IACCN
+        INY
+        JSR SwUpIY
+        LDA IACCH
+        INY
+        JMP SwUpIY
+
+04      LDA TYPE
+        BEQ #01
+        BMI STORPF
+        JSR IFLT
+STORPF  LDA FACCS
+        ANDIM &80
+        STA FACCS
+        LDY Work+3
+        BEQ #07
+        LDY Work+1
+        LDAAY Dat
+        CMPIM &BF
+        BEQ #08
+        STA Work+1
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDYIM 0
+07      LDA FACCX
+        STAIY Work
+        INY
+        LDA FACCMA
+        ANDIM &7F
+        ORA FACCS
+        STAIY Work
+        INY
+        LDA FACCMB
+        STAIY Work
+        INY
+        LDA FACCMC
+        STAIY Work
+        INY
+        LDA FACCMD
+        STAIY Work
+        RTS
+
+08      LDYIM 0
+        LDA FACCX
+        JSR SwUpIY
+        INY
+        LDA FACCMA
+        ANDIM &7F
+        ORA FACCS
+        JSR SwUpIY
+        INY
+        LDA FACCMB
+        JSR SwUpIY
+        INY
+        LDA FACCMC
+        JSR SwUpIY
+        INY
+        LDA FACCMD
+        JMP SwUpIY
+
+TOKOUT  ROUT
+        STA Work
+        CMPIM &80
+        BCC CHOUT
+        LDAIM TOKENS
+        STA Work+1
+        LDAIM :MSb: TOKENS
+        STA Work+2
+        STY Work+3
+FINTOK  LDYIM &00
+LOOTOK  INY
+        LDAIY Work+1
+        BPL LOOTOK
+        CMP Work
+        BEQ GOTTOK
+        INY
+        TYA
+        SEC
+        ADC Work+1
+        STA Work+1
+        BCC FINTOK
+        INC Work+2
+        BCS FINTOK
+GOTTOK  LDYIM &00
+PRTTOK  LDAIY Work+1
+        BMI ENDTOK
+        JSR CHOUT
+        INY
+        BNE PRTTOK
+ENDTOK  LDY Work+3
+        RTS
+
+HEXOUT  PHA
+        LSRA
+        LSRA
+        LSRA
+        LSRA
+        JSR DIG
+        PLA
+        ANDIM &0F
+DIG     CMPIM &0A
+        BCC DIGR
+        ADCIM &06
+DIGR    ADCIM &30
+CHOUT   CMPIM &0D
+        BNE NCH
+        JSR OSWRCH
+        JMP BUFEND
+
+HEXSP   JSR HEXOUT
+LISTPT  LDAIM " "
+NCH     PHA
+        LDA WIDTHV
+        CMP TALLY
+        BCS NOCRLF
+        JSR NLINE
+NOCRLF  PLA
+        INC TALLY
+        JMI WRCVEC
+LISTPS  AND LISTOP
+        BEQ LISTPX
+        TXA
+        BEQ LISTPX
+        BMI LISTPT
+        ASLA
+        TAX
+LISTPL  JSR LISTPT
+        DEX
+        BNE LISTPL
+LISTPX  RTS
+
+LISTO   INC CURSOR
+        JSR AEEXPR
+        JSR FDONE
+        JSR INTEG
+        LDA IACCL
+        STA LISTOP
+        JMP CLRSTK
+
+LIST    INY     
+        LDAIY LINE
+        CMPIM "O" ;listo command ?
+        BEQ LISTO
+        LDAIM &00
+        STA Work+4 ;FOR count
+        STA Work+5 ;REPEAT count
+        JSR SINSTK
+        JSR SPTSTN
+        PHP
+        JSR PHACC
+        LDAIM &FF
+        STA IACCL
+        LDAIM &7F
+        STA IACCM
+        PLP
+        BCC NONUML
+        JSR SPACES
+        CMPIM ","
+        BEQ GOTCX
+        JSR POPACC
+        JSR PHACC
+        DEC CURSOR
+        BPL GOTCFF
+NONUML  JSR SPACES
+        CMPIM ","
+        BEQ GOTCX
+        DEC CURSOR
+GOTCX   JSR SPTSTN
+GOTCFF  LDA IACCL
+        STA FACCMA
+        LDA IACCM
+        STA FACCMB
+        JSR DONE
+        JSR ENDER       ; finished Command line (?)
+
+        DEC UpDown      ; program's always upstairs
+        JSR POPACC
+        JSR FNDLNO
+        LDA Work+6
+        STA LINE
+        LDA PPtr
+        STA LINE+1
+        BCC LIMTST
+        DEY
+        BCS GETNUM
+
+ENDLN   JSR NLINE
+        JSR CLYADP
+GETNUM  
+        JSR LLinIY
+        STA IACCM
+        INY              
+        JSR LLinIY
+        STA IACCL
+        INY
+        INY
+        STY CURSOR
+LIMTST  LDA IACCL
+        CLC
+        SBC FACCMA
+        LDA IACCM
+        SBC FACCMB
+        BCC LISTLN
+        JMP CLRSTK
+
+LISTLN  JSR NPRN
+        LDXIM &FF
+        STX COEFP
+        LDAIM &01
+        JSR LISTPS
+        LDX Work+4
+        LDAIM &02
+        JSR LISTPS
+        LDX Work+5
+        LDAIM &04
+        JSR LISTPS
+LPX     LDY CURSOR
+LP      
+        JSR LLinIY
+        CMPIM &0D
+        BEQ ENDLN
+        CMPIM &22 ; quote
+        BNE LPTOKS
+        LDAIM &FF
+        EOR COEFP
+        STA COEFP
+        LDAIM &22 ; quote
+LPQUOT  JSR CHOUT
+        INY
+        BNE LP
+LPTOKS  BIT COEFP
+        BPL LPQUOT
+        CMPIM TCONST
+        BNE LPSIMP
+        JSR SPGETN
+        STY CURSOR
+        LDAIM &00
+        STA PRINTS
+        JSR POSITE
+        JMP LPX
+
+LPSIMP  CMPIM TFOR
+        BNE LPSIMQ
+        INC Work+4
+LPSIMQ  CMPIM TNEXT
+        BNE LPSIMR
+        LDX Work+4
+        BEQ LPSIMR
+        DEC Work+4
+LPSIMR  CMPIM TREPEAT
+        BNE LPSIMS
+        INC Work+5
+LPSIMS  CMPIM TUNTIL
+        BNE LPSIMT
+        LDX Work+5
+        BEQ LPSIMT
+        DEC Work+5
+LPSIMT  JSR TOKOUT
+        INY
+        BNE LP
+
+NEXER   BRK
+        = &20
+        = "No ", TFOR
+        BRK
+
+NEXT    ROUT
+        JSR AELV
+        BNE STRIPA
+        LDX FORSTP
+        BEQ NEXER
+        BCS NOCHK
+NEXHOW  JMP STDED
+
+STRIPA  BCS NEXHOW
+        LDX FORSTP
+        BEQ NEXER
+STRIP   LDA IACCL
+        CMPAX ForInL-&10
+        BNE NOTIT
+        LDA IACCM
+        CMPAX ForInH-&10
+        BNE NOTIT
+        LDA LVud
+        CMPAX ForInUd-&10
+        BNE NOTIT
+        LDA IACCN
+        CMPAX ForInT-&10
+        BEQ NoChk
+NOTIT   TXA
+        SEC
+        SBCIM &10
+        TAX
+        STX FORSTP
+        BNE STRIP
+
+        BRK
+        = &21
+        = "Can't Match ", TFOR
+        BRK
+
+NOCHK   LDAAX ForInL-&10
+        STA IACCL
+        LDAAX ForInH-&10
+        STA IACCM
+        LDAAX ForInUd-&10
+        STA LVud
+        LDYAX ForInT-&10
+        CPYIM &05
+        BNE #01
+        JMP FNext
+
+03      LDYIM &00
+        JSR LILUp
+        CLC
+        ADCAX ForSpL-&10
+        PHP
+        JSR SILUp
+        STA Work
+        INY
+        JSR LILUp
+        PLP
+        ADCAX ForSpM-&10
+        PHP
+        JSR SILUp
+        STA Work+1
+        INY
+        JSR LILUp
+        PLP
+        ADCAX ForSpN-&10
+        PHP
+        JSR SILUp
+        STA Work+2
+        INY
+        JSR LILUp
+        PLP
+        ADCAX ForSpH-&10
+        JSR SILUp
+        JMP #04
+
+01      TAY
+        BEQ #02
+        LDY IaccM
+        LDAAY DAT
+        CMPIM &BF
+        BEQ #03
+        STA IaccM
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+        LDYIM 0
+02      LDAIY IaccL
+        CLC
+        ADCAX ForSpL-&10
+        STAIY IaccL
+        STA Work
+        INY
+        LDAIY IaccL
+        ADCAX ForSpM-&10
+        STAIY IaccL
+        STA Work+1
+        INY
+        LDAIY IaccL
+        ADCAX ForSpN-&10
+        STAIY IaccL
+        STA Work+2
+        INY
+        LDAIY IaccL
+        ADCAX ForSpH-&10
+        STAIY IaccL
+04      TAY
+        LDA Work
+        SEC
+        SBCAX ForLmL-&10
+        STA Work
+        LDA Work+1
+        SBCAX ForLmM-&10
+        STA Work+1
+        LDA Work+2
+        SBCAX ForLmN-&10
+        STA Work+2
+        TYA
+        SBCAX ForLmH-&10
+        ORA Work
+        ORA Work+1
+        ORA Work+2
+        BEQ NOTFIN
+        TYA
+        EORAX ForSpH-&10
+        EORAX ForLmH-&10
+        BPL FORDRN
+        BCS NOTFIN
+        BCC FINFOR
+FORDRN  BCS FINFOR
+NOTFIN  LDYAX FORADL-&10
+        LDAAX FORADH-&10
+        STY LINE
+        STA LINE+1
+        JSR SECUR
+        JMP STMT
+
+FINFOR  LDA FORSTP
+        SEC
+        SBCIM &10
+        STA FORSTP
+        LDY AECUR
+        STY CURSOR
+        JSR SPACES
+        CMPIM ","
+        BNE NXTFIN
+        JMP NEXT
+
+FNext   LDA IaccM       ; shat on by varfp
+        PHA
+        JSR VARFP
+        LDA FORSTP
+        CLC
+        ADCIM ForSpL-&10
+        STA ArgP
+        LDAIM :MSB: ForSpL
+        STA ArgP+1
+        LDAIM 0
+        STA ArgP+2
+        JSR FADD
+        LDA IACCL
+        STA Work
+        PLA
+        STA Work+1
+        LDA LVud
+        STA Work+3
+        JSR STORPF
+        LDA FORSTP
+        STA TYPE
+        CLC
+        ADCIM ForLmL-&10
+        STA ArgP
+        LDAIM :MSB: ForLmL
+        STA ArgP+1
+        LDAIM 0
+        STA ArgP+2
+        JSR FCMP
+        BEQ NOTFIN
+        LDAAX ForSpL-&F   ; this is the one that really is F!
+        BMI FFORDR
+        BCS NOTFIN
+        BCC FINFOR
+
+FFORDR  BCC NOTFIN
+        BCS FINFOR
+
+NXTFIN  JMP SUNK
+
+HexA    ROUT
+        PHA
+        LSRA
+        LSRA
+        LSRA
+        LSRA
+        JSR #01
+        PLA
+        ANDIM &F
+01      SED
+        CMPIM 10
+        ADCIM "0"
+        CLD
+        JMP OsWrch
+
+FORCV   BRK
+        = &22
+        = TFOR, " variable"
+
+FORDP   BRK
+        = &23
+        = "Too many ", TFOR, "s"
+
+FORTO   BRK
+        = &24
+        = "No ", TTO
+        BRK
+
+FOR     JSR CRAELV
+        BEQ FORCV
+        BCS FORCV
+        LDA LVud
+        STA IaccH       ; construct a proper LValue
+        LDA IaccM       ; might get crapped on in storing
+        PHA
+        JSR PHACC
+        JSR EQEAT
+        JSR STEXPR
+        LDY FORSTP
+        CPYIM FORTOP
+        BCS FORDP
+        LDA Work
+        STAAY ForInL
+        PLA
+        STAAY ForInH
+        LDA Work+3
+        STAAY ForInUd
+        LDA Work+2
+        STAAY ForInT
+        TAX
+        JSR AESPAC
+        CMPIM TTO
+        BNE FORTO
+        CPXIM &05
+        BEQ FFOR
+        JSR INEXPR
+        LDY FORSTP
+        LDA IACCL
+        STAAY ForLmL
+        LDA IACCM
+        STAAY ForLmM
+        LDA IACCN
+        STAAY ForLmN
+        LDA IACCH
+        STAAY ForLmH
+        LDAIM &01
+        JSR SINSTK
+        JSR AESPAC
+        CMPIM TSTEP
+        BNE FORSTW
+        JSR INEXPR
+        LDY AECUR
+FORSTW  STY CURSOR
+        LDY FORSTP
+        LDA IACCL
+        STAAY ForSpL
+        LDA IACCM
+        STAAY ForSpM
+        LDA IACCN
+        STAAY ForSpN
+        LDA IACCH
+        STAAY ForSpH
+FORN    JSR FORR
+        LDY FORSTP
+        LDA LINE
+        STAAY FORADL
+        LDA LINE+1
+        STAAY FORADH
+        CLC
+        TYA
+        ADCIM &10
+        STA FORSTP
+        JMP STMT
+
+FFOR    JSR EXPR
+        JSR FLOATI
+        LDA FORSTP
+        CLC
+        ADCIM ForLmL
+        STA ArgP
+        LDAIM :MSB: ForLmL 
+        STA ArgP+1
+        LDAIM 0
+        STA ArgP+2
+        JSR FSTA
+        JSR FONE
+        JSR AESPAC
+        CMPIM TSTEP
+        BNE FFORST
+        JSR EXPR
+        JSR FLOATI
+        LDY AECUR
+FFORST  STY CURSOR
+        LDA FORSTP
+        CLC
+        ADCIM ForSpL
+        STA ArgP
+        LDAIM :MSB: ForSpL 
+        STA ArgP+1
+        LDAIM 0
+        STA ArgP+2
+        JSR FSTA
+        JMP FORN
+
+GOSUB   JSR GOFACT
+ONGOSB  JSR DONE
+        LDY SUBSTP
+        CPYIM SUBTOP
+        BCS GOSDP
+        LDA LINE
+        STAAY SUBADL
+        LDA LINE+1
+        STAAY SUBADH
+        INC SUBSTP
+        BCC GODONE
+
+GOSDP   BRK
+        = &25
+        = "Too many ", TGOSUB, "s"
+
+RETNUN  BRK
+        = &26
+        = "No ", TGOSUB
+        BRK
+
+RETURN  JSR DONE
+        LDX SUBSTP
+        BEQ RETNUN
+        DEC SUBSTP
+        LDYAX SUBADL -01
+        LDAAX SUBADH -01
+        STY LINE
+        STA LINE+1
+        JMP NXT
+
+GOTO    ROUT
+        JSR GOFACT
+        JSR DONE
+GODone  LDAIM &FF  ; got to go upstairs
+        STA UpDown
+        LDA TRFLAG
+        BEQ #01
+        JSR TRJOBA
+01      LDY Work+6
+        LDA Work+7
+JUMPAY  STY LINE
+        STA LINE+1
+        JMP STMT
+
+ONERGF  JSR DONE
+        LDAIM BASERR
+        STA ERRORL
+        LDAIM :MSB: BASERR
+        STA ERRORH
+        LDAIM 0
+        STA ErrUd
+        JMP NXT
+
+ONERRG  JSR SPACES
+        CMPIM TOFF
+        BEQ ONERGF
+        LDY CURSOR
+        DEY
+        JSR CLYADP
+        LDA LINE
+        STA ERRORL
+        LDA LINE+1
+        STA ERRORH
+        LDAIM &FF
+        STA ErrUd
+        JMP REM
+
+
+ONER    BRK
+        = &27
+        = TON, " syntax"
+        BRK
+
+ON      JSR SPACES
+        CMPIM TERROR
+        BEQ ONERRG
+        DEC CURSOR
+        JSR AEEXPR
+        JSR INTEGB
+        LDY AECUR
+        INY
+        STY CURSOR
+        CPXIM TGOTO
+        BEQ ONOK
+        CPXIM TGOSUB
+        BNE ONER
+ONOK    TXA
+        PHA
+        LDA IACCM
+        ORA IACCN
+        ORA IACCH
+        BNE ONRG
+        LDX IACCL
+        BEQ ONRG
+        DEX
+        BEQ ONGOT
+        LDY CURSOR
+ONSRCH  JSR LLinIY
+        INY
+        CMPIM &0D
+        BEQ ONRG
+        CMPIM ":"
+        BEQ ONRG
+        CMPIM TELSE
+        BEQ ONRG
+        CMPIM ","
+        BNE ONSRCH
+        DEX
+        BNE ONSRCH
+        STY CURSOR
+ONGOT   JSR GOFACT
+        PLA
+        CMPIM TGOSUB
+        BEQ ONGOS
+        JSR SECUR
+        JMP GODONE
+
+ONGOS   LDY CURSOR
+ONSKIP  JSR LLinIY
+        INY
+        CMPIM &0D
+        BEQ SKIPED
+        CMPIM ":"
+        BNE ONSKIP
+SKIPED  DEY
+        STY CURSOR
+        JMP ONGOSB
+
+ONRG    LDY CURSOR
+        PLA
+ONELSE  JSR LLinIY
+        INY
+        CMPIM TELSE
+        BEQ ONELS
+        CMPIM &0D
+        BNE ONELSE
+
+        BRK
+        = &28
+        = TON, " range"
+        BRK
+
+ONELS   STY CURSOR
+        JMP THENLN
+
+GOFACT  ROUT
+        JSR SPTSTN
+        BCS GotGo
+        JSR AEEXPR
+        JSR INTEGB
+        LDA AECUR
+        STA CURSOR
+        LDA IACCM
+        ANDIM &7F
+        STA IACCM
+GotGo   JSR FNDLNO
+        BCS NOLINE
+        RTS
+
+NOLINE  BRK
+        = &29
+        = "No such line"
+        BRK
+
+        LNK Bas0F

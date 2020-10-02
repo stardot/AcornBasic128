@@ -1,0 +1,338 @@
+        TTL     > Bas0A - SQRT, LOG, ATAN
+
+FSQRTE BRK
+      = &15
+      = "-ve root"
+      BRK
+
+SQR   JSR FLTFAC
+FSQRT JSR FTST
+      BEQ FSQRTZ  ;SQRT(0.0) EASY
+      BMI FSQRTE ;bad -ve
+      JSR STARGA
+      LDA FACCX
+      LSRA
+      ADCIM &40
+      STA FACCX
+      LDAIM &05
+      STA FRDDW
+      JSR ARGB
+FSQRTA JSR FSTA
+      LDAIM FWSA
+      STA ArgP
+      JSR FXDIV
+      LDAIM FWSB
+      STA ArgP
+      JSR FADD
+      DEC FACCX
+      DEC FRDDW
+      BNE FSQRTA
+FSQRTZ LDAIM &FF
+      RTS
+
+ARGD  LDAIM FWSD
+      BNE RatBag
+
+ARGB  LDAIM FWSB
+      BNE RatBag
+
+ARGC  LDAIM FWSC
+      BNE RatBag
+
+ARGA  LDAIM FWSA
+
+RatBag   ; aka ARGCOM
+      STA ArgP
+      LDAIM :MSB: FWSD
+      STA ArgP+1
+      LDAIM 0
+      STA ArgP+2
+      RTS
+
+;   FLOG SETS ACC= LOG(ACC)
+;   (BASE E). WORKS BY
+;   (A) CHECK FOR ACC <= 0.0
+;   (B) STRIP EXPONENT TO PUT
+;       ACC IN RANGE 1.0 - 2.0
+;       AND RENORMALIZE TO
+;       .707 TO 1.414
+;   (B2) extra care with smallest possible exponent
+;   (C) approximate log using (x-1)+(x-1)^2*cf(x-1)
+;       where cf is a minimax continued fraction
+;   (D) ADD RESULT TO
+;      EXPONENT * LOG(2.0)
+;   N.B. RESULT CAN NOT OVERFLOW
+;   SO NO WORRY THERE.
+;   THE SERIES APPROXIMATION
+;   USED FOR LOGS IS A CONTINUED
+;   FRACTION
+;    F(X)=C(0)+X/(C(1)+X/(...
+
+LN JSR FLTFAC
+FLOG JSR FTST
+      BEQ FLOGA ; LOG(0.0) ILLEGAL
+      BPL FLOGB ; LOG(>0.0) OK
+FLOGA BRK ; -VE OR ZERO LOG
+      = &16
+      = "Log range"
+      BRK
+
+FLOGB JSR FCLRW
+      LDYIM &80
+      STY FWRKS
+      STY FWRKMA
+      INY
+      STY FWRKX ;W:=-1
+      LDX FACCX
+      BEQ FLOGC
+      LDA FACCMA
+      CMPIM &B5
+      BCC FLOGD
+FLOGC INX
+      DEY
+FLOGD TXA
+      PHA
+      STY FACCX
+      JSR FADDW
+      LDAIM FWSD
+      JSR FSTAP
+      LDAIM FLOGTC
+      LDYIM :MSB: FLOGTC
+      JSR FCF
+      JSR ARGD
+      JSR FMUL
+      JSR FMUL
+      JSR FADD
+      JSR STARGA ;SAVE PARTIAL RESULT
+      PLA ; RECOVER EXPONENT BYTE
+      SEC
+      SBCIM &81
+      JSR FLTACC  ;FLOAT 8 BIT ACC
+      LDAIM LOGTWO
+      STA ArgP
+      LDAIM :MSB: LOGTWO
+      STA ArgP+1
+      LDAIM 0
+      STA ArgP+2
+      JSR FMUL
+      JSR ARGA
+      JSR FADD
+      LDAIM &FF
+      RTS
+
+LOGTWO = &80
+      = &31
+      = &72
+      = &17
+      = &F8  ;LN(2.0)
+FLOGTC = &06 ; LENGTH -01 OF CF
+      = &7A ;.8924e-2
+      = &12
+      = &38
+      = &A5
+      = &0B
+      = &88 ;.249e3
+      = &79
+      = &0E
+      = &9F
+      = &F3
+      = &7C ;.4167E-1
+      = &2A
+      = &AC
+      = &3F
+      = &B5
+      = &86 ;.45E2
+      = &34
+      = &01
+      = &A2
+      = &7A
+      = &7F ;.4444
+      = &63
+      = &8E
+      = &37
+      = &EC
+      = &82 ;.299999E1
+      = &3F
+      = &FF
+      = &FF
+      = &C1
+      = &7F ;-.5 almost
+      = &FF
+      = &FF
+      = &FF
+      = &FF
+
+ ASSERT :MSB: . = :MSB: flogtc
+
+;   FCF  EVALUATES A RATIONAL
+;   FUNCTION OF THE FORM..
+;   A0 + X/(A1 + X/(A2 + X/ ...
+;   I.E. A CONTINUED FRACTION
+;   IT TAKES A TABLE OF THE FORM
+;   <BYTE N> <AN> ... <A0>
+;   WHERE AN THROUGH A0 ARE F.P.
+; Sam demands that no table cross a page!
+
+FCF   ROUT
+      STA COEFP
+      STY COEFP+1
+      JSR STARGA ;save x
+      LDYIM &00
+      LDAIY COEFP ;LENGTH OF SERIES - always downstairs
+      STA FRDDDP
+      INC COEFP
+      LDA COEFP
+      STA ArgP
+      LDA COEFP+1
+      STA ArgP+1
+;       LDAIM 0     - set from starga
+;      STA ArgP+2
+      JSR FLDA
+02    JSR ARGA
+      JSR FXDIV
+      CLC
+      LDA COEFP
+      ADCIM &05
+      STA COEFP
+      STA ArgP
+      LDA COEFP+1
+      STA ArgP+1
+;      LDAIM 0    - already there
+;      STA ArgP+2
+      JSR FADD
+      DEC FRDDDP
+      BNE #02
+      RTS
+
+ACS   JSR ASN
+      JMP PISUB
+
+ASN   ROUT
+      JSR FLTFAC
+      JSR FTST
+      BPL #01
+      LSR FACCS
+      JSR #01
+      JMP SETNEG
+
+01    JSR STARGC
+      JSR SQRONE
+      JSR FTST
+      BEQ ASINAA
+      JSR ARGC
+      JSR FXDIV
+      JMP FATAN
+
+ASINAA JSR ARGHPI
+      JSR FLDA
+FATANZ LDAIM &FF
+      RTS
+
+;   FATAN COMPUTES ARCTANGENT
+;   METHOD:
+;   (A) ATAN(-X) = - ATAN(X)
+;   (B) IF X>1.0 USE
+;       ATAN(X)=PI/2 - ATAN(1/X)
+;   (C0) IF X<0.0001 RESULTIS X
+;     ELSE ...
+;   (C1) LET Y=(X-0.5), SO Y IS
+;        IN RANGE -0.5 TO 0.5
+;   (D) COMPUTE SERIES IN Y SO
+;       THAT IT GIVES ATAN(X)/X
+;   (E) MULTIPLY BY X TO GET
+;       RESULT
+;   (F) (PUT BACK PI/2 AND '-')
+
+ATN   JSR FLTFAC
+FATAN JSR FTST
+      BEQ FATANZ
+      BPL FATANA
+      LSR FACCS  ;FORCE +VE
+      JSR FATANA  ;ATAN(-X)
+SETNEG LDAIM &80
+      STA FACCS  ;NEGATE AT END
+      RTS
+FATANA LDA FACCX
+      CMPIM &81   ;IS ACC>=1.0 ?
+      BCC FATANB  ;NO IT ISNT
+      JSR FRECIP
+      JSR FATANB  ;ATAN(1/X)
+PISUB JSR AHPIHI ; pi/2-A
+      JSR FADD
+      JSR AHPILO
+      JSR FADD
+      JMP FNEG
+FATANB LDA FACCX
+      CMPIM &73
+      BCC FATANZ  ;    VERY SMALL NUMBER
+                  ;    SO ATAN(X)=X TO M/C ACCURACY
+      JSR STARGC  ;save arg away
+      JSR FCLRW
+      LDAIM &80
+      STA FWRKX
+      STA FWRKMA
+      STA FWRKS  ;W:=-0.5
+      JSR FADDW
+;    NOW ACC IS IN (-0.5,0.5)
+      LDAIM FATANC
+      LDYIM :MSB: FATANC
+      JSR FCF  ; SUM MAGIC SERIES
+      JSR ACMUL ; MULTIPLY BY ARG, EXIT
+      LDAIM &FF
+      RTS
+
+FATANC = &09 ; SERIES LENGTH
+      = &85 ; -.2042E2
+      = &A3
+      = &59
+      = &E8
+      = &67
+      = &80  ;.6118
+      = &1C
+      = &9D
+      = &07
+      = &36
+      = &80  ;.8427
+      = &57
+      = &BB
+      = &78
+      = &DF
+      = &80  ;-.7914
+      = &CA
+      = &9A
+      = &0E
+      = &83
+      = &84  ;-.8796E1
+      = &8C
+      = &BB
+      = &CA
+      = &6E
+      = &81  ;-.1169E1
+      = &95
+      = &96
+      = &06
+      = &DE
+      = &81  ;.10842E1
+      = &0A
+      = &C7
+      = &6C
+      = &52
+      = &7F  ;.49546
+      = &7D
+      = &AD
+      = &90
+      = &A1
+      = &82  ;-.39279E1
+      = &FB
+      = &62
+      = &57
+      = &2F
+      = &80  ;.9273
+      = &6D
+      = &63
+      = &38
+      = &2C
+
+ ASSERT :MSB: fatanc = :MSB: .
+
+      LNK     BAS0B

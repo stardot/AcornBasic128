@@ -1,0 +1,128 @@
+          TTL > Bas01      declarations and startup
+
+ENTRY ROUT
+        LDXIM &FF
+        STXZ  RamIndex
+
+03      INX
+        CPXIM &10
+        BEQ   #05
+        STX   &F4
+        STX   &FE30
+        LDAIM &E5         ; a magic number from Stu
+        LDY   &8006
+        STA   &8006       ; ROM type
+        EOR   &8006
+        STY   &8006
+        BNE   #03
+
+        INCZ    RamIndex
+        LDA     RamIndex   ; build up page of RAM slots
+        ASLA ; *2
+        ASLA ; *4
+        ASLA ; *8
+        ASLA ; *16
+        ASLA ; *32
+        ASLA ; *64          ; just wrap for more than 4 slots
+        TAY
+        TXA
+        LDXIM   &40     ; no of slots to fill
+07      STAAY   OurRam   ; translation table
+        INY
+        DEX
+        BNE     #07
+        TAX
+        JMP     #03
+
+04      BRK
+        =   0
+        =   "No memory found"
+        BRK
+
+HimLotab = &00,&40,&80,&C0
+
+05      LDA   RamIndex
+        BMI   #04        ; didn't find any mammaries
+        CMPIM 4          ; might have found too many
+        BCC   #06
+        LDAIM 3         ; max no
+        STA   RamIndex
+        CLC
+06      ADCIM 1
+        PHA
+        ANDIM 3
+        TAX              ; HIMEM := &010000 + &4000 * (RamIndex+1)
+        LDAAX HimLotab
+        STA   HiMem+1
+        PLA          
+        LSRA
+        LSRA
+        ANDIM 3
+        TAX
+        INX
+        STX   HIMEM+2   
+      
+        LDAIM 0
+        STA UpDown  ; we are downstairs
+      
+        JSR VStrng
+        =     13,"BBC BASIC",13
+        NOP
+
+        LDX RamIndex
+        LDAIM &16
+        SED
+08      CLC
+        ADCIM &16
+        DEX
+        BNE #08
+        CLD
+        JSR HexA
+        JSR Vstrng  
+        = "K bytes free",13,13
+        NOP
+
+
+        LDXIM &00
+        STX HiMem
+        STX TXTP ; PAGE := &10000 : Assume &1XX00     
+        STX LISTOP
+        STX VARL + 02
+        STX VARL + 03
+        DEX
+        STX WIDTHV
+        LDXIM &0A
+        STX VARL
+        DEX
+        STX VARL + 01
+        LDAIM &01
+        AND SEED + 04
+        ORA SEED
+        ORA SEED + 01
+        ORA SEED + 02
+        ORA SEED + 03
+        BNE RNDOK
+        LDAIM "S"           ; subtle change!
+        STA SEED
+        LDAIM "A"
+        STA SEED + 01
+        LDAIM "M"
+        STA SEED + 02
+
+RNDOK   LDAIM :LSB: BREK
+        STA BREAK
+        LDAIM :MSB: BREK
+        STA BREAK + 01
+        CLI
+        LDYIM 0
+        LDAAY DefRep
+09      STAAY BrkMS
+        INY
+        LDAAY DefRep
+        BNE #09
+        STAAY BrkMs
+        JMP FORMAT
+
+DefRep  =       0,"(C) Acornsoft 1985, V1.11",0
+
+        LNK     BAS02

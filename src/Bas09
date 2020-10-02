@@ -1,0 +1,559 @@
+        TTL     > Bas09 - PLUS,MINUS,TIMES,DIV
+
+
+IFIX    JSR FFIX
+        LDA FACCMA
+        STA IACCH
+        LDA FACCMB
+        STA IACCN
+        LDA FACCMC
+        STA IACCM
+        LDA FACCMD
+        STA IACCL
+        RTS
+
+
+;   FFIX leaves faama-faccmd as a 32 bit integer.
+;   Truncates towards zero; after a call to ffix,
+;   ffrac sets acc to remaining fractional part.
+;   FFIXA shifts acc right until exponent is &A0.
+;   Bits shifted out of the bottom of A go into wrk.
+
+FFIXQ   JSR FTOW
+        JMP FCLR
+
+FFIX    LDA FACCX
+        BPL FFIXQ
+        JSR FCLRW
+        JSR FTST
+        BNE FFIXG  ;Always shift at least once
+        BEQ FFIXY  ;except for 0
+FFIXB   LDA FACCX
+        CMPIM &A0
+        BCS FFIXC  ;DONE, OR OVERSHOT
+        CMPIM &99
+        BCS FFIXG
+        ADCIM &08
+        STA FACCX
+        LDA FWRKMC
+        STA FWRKMD
+        LDA FWRKMB
+        STA FWRKMC
+        LDA FWRKMA
+        STA FWRKMB
+        LDA FACCMD
+        STA FWRKMA
+        LDA FACCMC
+        STA FACCMD
+        LDA FACCMB
+        STA FACCMC
+        LDA FACCMA
+        STA FACCMB
+        LDAIM &00
+        STA FACCMA
+        BEQ FFIXB
+FFIXG   LSR FACCMA
+        ROR FACCMB
+        ROR FACCMC
+        ROR FACCMD
+        ROR FWRKMA
+        ROR FWRKMB
+        ROR FWRKMC
+        ROR FWRKMD  ;ROTATE DOWN INTO WORK.
+        INC FACCX
+        BNE FFIXB
+;                    HERE I HAVE OVERFLOW
+FFIXV   JMP FOVR
+
+FCLRW   LDAIM &00
+        STA FWRKS
+        STA FWRKXH
+        STA FWRKX
+        STA FWRKMA
+        STA FWRKMB
+        STA FWRKMC
+        STA FWRKMD
+        STA FWRKMG
+        RTS
+
+FFIXC   BNE FFIXV
+FFIXY   LDA FACCS
+        BPL FFIXZ  ; >=0.0 SO DONE NOW
+
+;           FINEG NEGATES 32 BIT INTEGER IN FACCMA-FACCMD
+
+FINEG   SEC
+        LDAIM &00
+        SBC FACCMD
+        STA FACCMD
+        LDAIM &00
+        SBC FACCMC
+        STA FACCMC
+        LDAIM &00
+        SBC FACCMB
+        STA FACCMB
+        LDAIM &00
+        SBC FACCMA
+        STA FACCMA
+FFIXZ   RTS
+
+;          FFRAC SETS FQUAD TO THE INTEGER PART OF
+;          AC, AND AC TO ITS FRACTIONAL PART. RETURNS WITH
+;          CONDITION CODE SET ZERO IF FRACTION IS ZERO.
+;          ASSUMES THAT ON INPUT FIX(ACC) < 128.
+
+FFRAC   LDA FACCX
+        BMI FFRACA ; NORMAL CASE
+        LDAIM &00
+        STA FQUAD
+        JMP FTST  ;ABS(AC)<0.5 ON ENTRY
+
+FFRACA  JSR FFIX
+        LDA FACCMD
+        STA FQUAD
+        JSR FMWTOA
+        LDAIM &80
+        STA FACCX
+        LDX FACCMA
+        BPL FNEARN  ;FRACTION PART < 0.5
+        EOR FACCS
+        STA FACCS  ;CHANGE SIGN OF FRACTION PART
+        BPL FNEARQ
+        INC FQUAD
+        JMP FNEARR
+
+FNEARQ  DEC FQUAD
+FNEARR  JSR FINEG  ;ACHIEVES FRACT= 1 - FRACT
+FNEARN  JMP FNRM
+
+FINC    INC FACCMD
+        BNE FNEARZ
+        INC FACCMC
+        BNE FNEARZ
+        INC FACCMB
+        BNE FNEARZ
+        INC FACCMA
+        BEQ FFIXV  ;OVERFLOW
+FNEARZ  RTS
+
+FNEARP  JSR FINEG
+        JSR FINC
+        JMP FINEG
+
+FSUB    JSR FXSUB
+        JMP FNEG
+
+FSWOP   JSR FLDW
+        JSR FSTA
+FWTOA   LDA FWRKS
+        STA FACCS
+        LDA FWRKXH
+        STA FACCXH
+        LDA FWRKX
+        STA FACCX
+FMWTOA  LDA FWRKMA
+        STA FACCMA
+        LDA FWRKMB
+        STA FACCMB
+        LDA FWRKMC
+        STA FACCMC
+        LDA FWRKMD
+        STA FACCMD
+        LDA FWRKMG
+        STA FACCMG
+FADDZ   RTS
+
+FXSUB   JSR FNEG
+FADD    JSR FLDW
+        BEQ FADDZ  ;A+0.0 = A
+FADDW   JSR FADDW1
+        JMP FTIDY
+
+FADDW1  JSR FTST ; SEE IF ADDING TO 0
+        BEQ FWTOA ; LOAD WITH W
+;           HERE I HAVE A NONTRIVIAL ADD
+        LDYIM &00
+        SEC
+        LDA FACCX
+        SBC FWRKX
+        BEQ FADDA
+        BCC FADDB  ;X(ACC)<X(WRK)
+        CMPIM &25
+        BCS FADDZ  ;SHIFT TOO LARGE FOR SIGNIFICANCE
+;           Now shift W right
+        PHA
+        ANDIM &38
+        BEQ FADDCA
+        LSRA
+        LSRA
+        LSRA
+        TAX
+FADDCB  LDA FWRKMD
+        STA FWRKMG
+        LDA FWRKMC
+        STA FWRKMD
+        LDA FWRKMB
+        STA FWRKMC
+        LDA FWRKMA
+        STA FWRKMB
+        STY FWRKMA
+        DEX
+        BNE FADDCB
+FADDCA  PLA
+        ANDIM &07
+        BEQ FADDA
+        TAX
+FADDC   LSR FWRKMA
+        ROR FWRKMB
+        ROR FWRKMC
+        ROR FWRKMD
+        ROR FWRKMG
+        DEX
+        BNE FADDC
+        BEQ FADDA  ;ALLIGNED
+FADDB   SEC
+        LDA FWRKX
+        SBC FACCX  ;AMOUNT TO SHIFT ACC
+        CMPIM &25
+        BCS FWTOA  ;ACC NOT SIGNIFICANT
+;           Now shift ACC right
+        PHA
+        ANDIM &38
+        BEQ FADDDA
+        LSRA
+        LSRA
+        LSRA
+        TAX
+FADDDB  LDA FACCMD
+        STA FACCMG
+        LDA FACCMC
+        STA FACCMD
+        LDA FACCMB
+        STA FACCMC
+        LDA FACCMA
+        STA FACCMB
+        STY FACCMA
+        DEX
+        BNE FADDDB
+FADDDA  PLA
+        ANDIM &07
+        BEQ FADDAL
+        TAX
+FADDD   LSR FACCMA
+        ROR FACCMB
+        ROR FACCMC
+        ROR FACCMD
+        ROR FACCMG
+        DEX
+        BNE FADDD
+FADDAL  LDA FWRKX  ;X(RESULT) FROM X(WRK)
+        STA FACCX
+;             DROP THROUGH TO FADDA
+FADDA   LDA FACCS
+        EOR FWRKS
+        BPL FADDE  ;BOTH SAME SIGN
+        LDA FACCMA
+        CMP FWRKMA
+        BNE FADDF
+        LDA FACCMB
+        CMP FWRKMB
+        BNE FADDF
+        LDA FACCMC
+        CMP FWRKMC
+        BNE FADDF
+        LDA FACCMD
+        CMP FWRKMD
+        BNE FADDF
+        LDA FACCMG
+        CMP FWRKMG
+        BNE FADDF
+        JMP FCLR   ;ACC=WRK IN DIFFERENCE CASE
+
+FADDF   BCS FADDG ;  ABS ACC>ABS WRK
+        SEC
+        LDA FWRKMG
+        SBC FACCMG
+        STA FACCMG
+        LDA FWRKMD
+        SBC FACCMD
+        STA FACCMD
+        LDA FWRKMC
+        SBC FACCMC
+        STA FACCMC
+        LDA FWRKMB
+        SBC FACCMB
+        STA FACCMB
+        LDA FWRKMA
+        SBC FACCMA
+        STA FACCMA  ;OVERFLOW IMPOSSIBLE
+        LDA FWRKS
+        STA FACCS
+        JMP FNRM
+
+FADDE   CLC
+        JMP FPLWF ;ADD WRK TO ACC
+
+FADDG   SEC
+        LDA FACCMG
+        SBC FWRKMG
+        STA FACCMG
+        LDA FACCMD
+        SBC FWRKMD
+        STA FACCMD
+        LDA FACCMC
+        SBC FWRKMC
+        STA FACCMC
+        LDA FACCMB
+        SBC FWRKMB
+        STA FACCMB
+        LDA FACCMA
+        SBC FWRKMA
+        STA FACCMA
+        JMP FNRM
+
+;           TIMES AND DIVIDE
+FMULZ   RTS
+
+IFMUL   JSR FTST
+        BEQ FMULZ  ;0.0 * SOMETHING
+        JSR FLDW  ;GET OTHER ARG
+        BNE FMULA ;NONZERO, SO REAL WORK
+        JMP FCLR
+
+FMULA   CLC
+        LDA FACCX
+        ADC FWRKX ;add exponents
+        BCC FMULB
+        INC FACCXH
+;         Subtract &80 bias from exponent, do not check over/underflow
+;         yet in case renormalisation fixes things
+        CLC
+FMULB   SBCIM &7F ;carry subtracts extra 1
+        STA FACCX
+        BCS FMULC
+        DEC FACCXH
+
+;          COPY ACC TO TMP, CLEAR ACC
+;          THEN I CAN DO ACC:=WRK*TMP
+;          AS A FIXED POINT OPERATION.
+
+FMULC   LDXIM &05
+        LDYIM &00 ;TO PRESET ACC TO 0.0
+FMULD   LDAZX FACCMA -01
+        STAZX FTMPMA -01
+        STYZX FACCMA -01
+        DEX
+        BNE FMULD
+        LDA FACCS
+        EOR FWRKS
+        STA FACCS  ;GET SIGN RIGHT
+
+;           NOW FOR 1:32 DO <<
+;             IF MSB(TMP)=1 ACC:=ACC+WRK
+;             TMP:=TMP<<1
+;             WRK:=WRK>>1 >>
+
+        LDYIM &20  ;COUNT
+FMULE   LSR FWRKMA
+        ROR FWRKMB
+        ROR FWRKMC
+        ROR FWRKMD
+        ROR FWRKMG
+        ASL FTMPMD    ;FTMPMG cannot affect answer
+        ROL FTMPMC
+        ROL FTMPMB
+        ROL FTMPMA
+        BCC FMULF
+        CLC
+        JSR FPLW
+FMULF   DEY
+        BNE FMULE
+        RTS
+
+FMUL    JSR IFMUL
+NRMTDY  JSR FNRM
+FTIDY   LDA FACCMG
+        CMPIM &80
+        BCC FTRNDZ
+        BEQ FTRNDA
+        LDAIM &FF
+        JSR FPLNF
+        JMP FTRNDZ
+
+FOVR    BRK
+        = &14
+        = "Too big"
+        BRK
+
+FTRNDA  LDA FACCMD
+        ORAIM &01
+        STA FACCMD
+FTRNDZ  LDAIM &00
+        STA FACCMG
+        LDA FACCXH
+        BEQ FTIDYZ
+        BPL FOVR ;overflow
+FCLR    LDAIM &00
+        STA FACCS
+        STA FACCXH
+        STA FACCX
+        STA FACCMA
+        STA FACCMB
+        STA FACCMC
+        STA FACCMD
+        STA FACCMG
+FDIVZZ ;   RETURN FROM DIVIDE, ALSO
+FTIDYZ  RTS
+
+FONE    JSR FCLR
+        LDYIM &80
+        STY FACCMA
+        INY
+        STY FACCX
+        TYA
+        RTS
+
+FRECIP  JSR STARGA
+        JSR FONE
+        BNE FDIV
+FXDIV   JSR FTST
+        BEQ FDIVZ  ;divide by zero
+        JSR FTOW
+        JSR FLDA
+        BNE FDIVA
+        RTS ;  RESULT IS ZERO
+
+FDIVZ   JMP ZDIVOR
+
+TAN     JSR FLTFAC
+
+
+;           FTAN WORKS AS FSIN(X)/FCOS(X)
+
+        JSR FRANGE
+        LDA FQUAD
+        PHA
+        JSR ARGD
+        JSR FSTA
+        INC FQUAD
+        JSR FSC
+        JSR ARGD
+        JSR FSWOP
+        PLA
+        STA FQUAD
+        JSR FSC
+        JSR ARGD
+        JSR FDIV
+        LDAIM &FF
+        RTS
+
+
+FDIV    JSR FTST
+        BEQ FDIVZZ  ; 0.0/ANYTHING=0.0 (INCLUDING 0.0/0.0)
+        JSR FLDW
+        BEQ FDIVZ ; divide by zero
+
+FDIVA   LDA FACCS
+        EOR FWRKS
+        STA FACCS  ; SIGN CORRECT
+        SEC
+        LDA FACCX ; difference of exponents
+        SBC FWRKX
+        BCS FDIVB
+        DEC FACCXH
+        SEC
+FDIVB   ADCIM &80 ;and carry is set so 81
+;   offset x and binary point after integer part ->81
+        STA FACCX
+        BCC FDIVC
+        INC FACCXH
+        CLC
+FDIVC   LDXIM &20
+FDIVE   BCS FDIVH
+        LDA FACCMA
+        CMP FWRKMA
+        BNE FDIVF
+        LDA FACCMB
+        CMP FWRKMB
+        BNE FDIVF
+        LDA FACCMC
+        CMP FWRKMC
+        BNE FDIVF
+        LDA FACCMD
+        CMP FWRKMD
+FDIVF   BCC FDIVG  ;WON'T GO
+
+;    ACC-GUARD ON BASIS OF
+;    THE COMPARISON
+;    C BIT ALREADY SET FOR SBC
+
+FDIVH   LDA FACCMD
+        SBC FWRKMD
+        STA FACCMD
+        LDA FACCMC
+        SBC FWRKMC
+        STA FACCMC
+        LDA FACCMB
+        SBC FWRKMB
+        STA FACCMB
+        LDA FACCMA
+        SBC FWRKMA
+        STA FACCMA
+        SEC
+FDIVG   ROL FTMPMD
+        ROL FTMPMC
+        ROL FTMPMB
+        ROL FTMPMA
+        ASL FACCMD
+        ROL FACCMC
+        ROL FACCMB
+        ROL FACCMA
+        DEX
+        BNE FDIVE
+        LDXIM &07
+FDIVJ   BCS FDIVL  ; now generate seven guard bits
+        LDA FACCMA
+        CMP FWRKMA
+        BNE FDIVK
+        LDA FACCMB
+        CMP FWRKMB
+        BNE FDIVK
+        LDA FACCMC
+        CMP FWRKMC
+        BNE FDIVK
+        LDA FACCMD
+        CMP FWRKMD
+FDIVK   BCC FDIVM
+FDIVL   LDA FACCMD
+        SBC FWRKMD
+        STA FACCMD
+        LDA FACCMC
+        SBC FWRKMC
+        STA FACCMC
+        LDA FACCMB
+        SBC FWRKMB
+        STA FACCMB
+        LDA FACCMA
+        SBC FWRKMA
+        STA FACCMA
+        SEC
+FDIVM   ROL FACCMG
+        ASL FACCMD
+        ROL FACCMC
+        ROL FACCMB
+        ROL FACCMA
+        DEX
+        BNE FDIVJ
+        ASL FACCMG
+        LDA FTMPMD
+        STA FACCMD
+        LDA FTMPMC
+        STA FACCMC
+        LDA FTMPMB
+        STA FACCMB
+        LDA FTMPMA
+        STA FACCMA
+        JMP NRMTDY
+
+
+        LNK     Bas0A

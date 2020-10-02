@@ -1,0 +1,519 @@
+        TTL     > Bas0D - function call
+
+
+FNMISS  PLA
+        STA Line+1
+        PLA
+        STA Line
+
+        BRK
+        = &1D
+        = "No such ", TFN, "/", TPROC
+        BRK
+
+FNDEF   LDA   TXTP
+        STA   Line+1
+        LDAIM 0
+        STA   Line
+FNFIND  LDYIM 1
+        JSR   LLUpIY
+        TAY
+        BMI   FNMISS
+        LDYIM 3
+FNFINS  INY
+        JSR   LLUpIY
+        CMPIM " " 
+        BEQ   FNFINS
+        CMPIM TDEF
+        BEQ   DEFFND
+NEXLIN  LDYIM 3
+        JSR   LLUpIY
+        CLC
+        ADC   Line
+        STA   Line
+        BCC   FNFIND
+        INC   Line+1
+        BCS   FNFIND
+
+DEFFND  INY
+        STY   CURSOR
+        JSR   SPACES
+        TYA
+        TAX
+        CLC
+        ADC   Line
+        LDY   Line+1
+        BCC   FNFDIN
+        INY
+        CLC
+FNFDIN  SBCIM 0
+        STA   Work+5
+        TYA
+        SBCIM 0
+        STA   Work+6
+        LDYIM 0
+FNFDLK  INY
+        INX
+        JSR   LWp5UpIY
+        STA   PPtr2+1
+        JSR   LWrkIY
+        CMP   PPtr2+1
+        BNE   NEXLIN
+        CPY   Work+2
+        BNE   FNFDLK
+        INY
+        JSR   LWp5UpIY
+        JSR   WORDCQ
+        BCS   NEXLIN
+        TXA
+        TAY
+        JSR   CLYADP
+        JSR   CREAFN
+        JSR   FsaPY
+        LDYIM 0
+        LDA   Line
+        JSR   SFsaIY
+        INY
+        LDA   Line+1
+        JSR   SFsaIY
+        JSR   FSAPY
+        JMP   FNGO
+
+FNCALL  BRK
+        = &1E
+        = "Bad call"
+        BRK
+
+FN      ROUT
+        LDAIM TFN
+FNBODY  STA   TYPE      ; entry pt for fns/procs
+
+        TSX             ; push hardware stack
+        TXA
+        CLC
+        EORIM &FF
+        JSR   HIDEC
+        BCC   #03
+        LDYIM 0
+        TXA
+        STAIY PPtr       ; stack level
+05      INX
+        INY
+        LDAAX &0100     ; pla?
+        STAIY PPtr
+        CPXIM &FF
+        BNE   #05
+04      TXS
+
+        LDA   TYPE      ; hpush return addr
+        PHA
+        LDA   CURSOR
+        PHA
+        LDA   Line
+        PHA
+        LDA   Line+1
+        PHA
+        LDA   UpDown
+        STA   ProcPos
+        PHA
+
+        LDA   AECUR     ; look at name posn
+        TAX
+        CLC
+        ADC   AeLine
+        LDY   AeLine+1
+        BCC   #02
+        INY
+        CLC
+02      SBCIM 1
+        STA   Work
+        TYA
+        SBCIM 0
+        STA   Work+1
+        LDYIM 2
+        JSR   WORDLP   ; get subr name
+        CPYIM 2
+        BEQ   FNCALL   ; no name
+        STX   AECUR
+        DEY
+        STY   Work+2
+        JSR   LookFN
+        BNE   FNGOA
+        JMP   FNDEF
+
+03      LDYIM 0
+        TXA
+        JSR   PhaTs       ; stack level
+01      INX
+        INY
+        LDAAX &0100
+        JSR   PhaTs
+        CPXIM &FF
+        BNE   #01
+        BEQ   #04
+
+FNGOA   LDYIM 0    ; got a name to call
+        JSR   LILUp
+        STA   Line
+        INY
+        JSR   LILUp
+        STA   Line+1
+FNGO    LDAIM &FF
+        STA   UpDown ; go up, young man
+        LDAIM 0
+        PHA
+        STA   CURSOR
+        JSR   SPACES
+        CMPIM "("
+        BEQ   FNARGS
+        DEC   CURSOR
+DOFN    LDA   AECUR   ; dive in
+        PHA
+        LDA   AeLine
+        PHA
+        LDA   AeLine+1
+        PHA
+        JSR   STMT       ; type now contains type
+        PLA
+        STA   AeLine+1
+        PLA
+        STA   AeLine
+        PLA
+        STA   AECUR
+        PLA
+        BEQ   DNARGS
+        STA   Work+8
+GTARGS  JSR   POPWRK
+        JSR   STORST  ; this is only called from here - maybe it should move?
+                      ; anyway, this does the LVal handling
+        DEC   Work+8
+        BNE   GTARGS
+DNARGS  PLA
+        STA   UpDown
+        PLA
+        STA   Line+1
+        PLA
+        STA   Line
+        PLA
+        STA   CURSOR
+        PLA
+        LDYIM 0
+        JSR   PlaFs
+        TAX
+        TXS
+FNPLLP  INY
+        INX
+        JSR   PlaFs
+        STAAX &0100
+        CPXIM &FF
+        BNE   FNPLLP
+        TYA
+        ADC   AeStkP
+        STA   AeStkP
+        BCC   FNPL
+        INC   AeStkP+1
+        BNE   FnPl
+        INC   AeStkP+2
+FNPL    LDA   TYPE
+        RTS
+
+FNARGS  ROUT
+        LDA   AECUR        ;  parse arglist - first hpush AeLine
+        PHA
+        LDA   AeLine
+        PHA
+        LDA   AeLine+1
+        PHA
+        JSR   CRAELV        ; craelv of arg
+        BEQ   #06
+        LDA   AECUR
+        STA   CURSOR
+        PLA              ; hpull AeLine
+        STA   AeLine+1
+        PLA
+        STA   AeLine
+        PLA
+        STA   AECUR
+        PLA               ; hpull args
+        TAX
+        LDA   IaccN         ; hpush lvalue
+        PHA
+        LDA   IaccM
+        PHA
+        LDA   IaccL
+        PHA
+        LDA   LVud
+        PHA
+        INX               ; args:=args+1
+        TXA               ; hpush args
+        PHA
+        JSR   RetInf        ; bpush return info
+        JSR   SPACES
+        CMPIM ","
+        BEQ   FNARGS
+        CMPIM ")"
+        BNE   #06
+        LDA   ProcPos       ; point at call
+        STA   UpDown
+        LDAIM 0         ; hpush 0
+        PHA
+        JSR   AESPAC
+        CMPIM "("
+        BNE   #06
+05      JSR   EXPR          ; expr
+        JSR   PHTYPE        ; bpush val
+        LDA   TYPE          ; bpush type
+        STA   IaccH
+        JSR   PHACC
+        PLA               ; hpull args;inc args;hpush args
+        TAX
+        INX
+        TXA
+        PHA
+        JSR   AESPAC
+        CMPIM ","
+        BEQ   #05
+        CMPIM ")"
+        BNE   #06
+        PLA
+        PLA
+        STA   COEFP
+        STA   COEFP+1
+        CPX   COEFP
+        BEQ   #07
+06      LDXIM &FA
+        TXS
+        PLA
+        STA   UpDown
+        PLA
+        STA   Line+1
+        PLA
+        STA   Line
+
+        BRK
+        = &1F
+        = "Arguments"
+        BRK
+
+07      JSR   POPACC         ; bpull type
+        PLA                ; hpull lv
+        STA   LVud
+        PLA
+        STA   IaccL
+        PLA
+        STA   IaccM
+        PLA
+        STA   IaccN
+        BMI   #03
+        LDA   IaccH
+        BEQ   #06
+        STA   TYPE
+        LDXIM Work
+        JSR   ACCTOM
+        LDA   TYPE
+        BPL   #01
+        JSR   POPSET
+        JSR   FLDA
+        JMP   #02
+
+01      JSR   POPACC
+02      LDA   LVud
+        STA   Work+3
+        JSR   STORF
+        JMP   #04
+
+03      LDA   IaccH
+        BNE   #06
+        LDA   LVud
+        STA   IaccH   ; for NStr if needed
+        JSR   POPSTR
+        JSR   STSTRE
+04      DEC   COEFP
+        BNE   #07
+        LDAIM &FF
+        STA   UpDown    ; point at proc body
+        LDA   COEFP+1
+        PHA
+        JMP   DOFN
+
+RetInf  ROUT
+        LDA   IaccM     ; probably get crapped by varind
+        STA   LookCrit
+        LDY   IaccN
+        BMI   #01
+        LDA   LVud  ; form SamLValue - done already for $indirect
+        STA   IaccH
+        CPYIM 5
+        BCS   #01
+        LDXIM Work
+        JSR   ACCTOM
+01      JSR   VARIND
+        PHP
+        JSR   PHTYPE
+        PLP
+        BEQ   #02
+        BMI   #02
+        LDXIM Work
+        JSR   MTOACC
+02      LDA   LookCrit
+        STA   IaccM
+        JMP   PHACC
+
+FACSTR  ROUT
+        CPYIM &80
+        BEQ   FACSTT
+        LDYIM 3
+        JSR   LILUP     ; string vars are up
+        STA   CLEN
+        BEQ   #04
+        LDYIM 1
+        JSR   LILUP
+        STA   Work+1
+        DEY
+        JSR   LILUP
+        STA   Work
+        LDY   CLEN
+03      DEY
+        JSR   LWUpIY
+        STAAY STRACC
+        TYA
+        BNE   #03
+04      RTS         ; return with A=0, EQ always.
+
+
+FACSTT  LDYIM 0       ; do $factor
+        LDA   UpDown
+        PHA
+        LDA   IaccH
+        STA   UpDown
+05      JSR   LILIY
+        STAAY STRACC
+        EORIM &0D
+        BEQ   #06
+        INY
+        BNE   #05
+        TYA
+06      STY   CLEN
+        STA   MoveTY
+        PLA
+        STA   UpDown
+        LDA   MoveTY
+        RTS
+
+VARIND  ROUT
+        LDY   IaccN
+        BMI   FACSTR
+        BEQ   VARONE
+        CPYIM 5
+        BEQ   VARFP
+        LDA   LVud
+        BEQ   #07
+        LDY   IaccM
+        LDAAY DAT
+        CMPIM &BF
+        BEQ   #08
+        STA   IaccM
+        LDAAY OurRam
+        STA   &F4
+        STA   &FE30
+07      LDYIM 3
+        LDAIY IaccL
+        STA   IaccH
+        DEY
+        LDAIY IaccL
+        STA   IaccN
+        DEY
+        LDAIY IaccL
+        TAX
+        DEY
+        LDAIY IaccL
+        STA   IaccL
+        STX   IaccM
+        LDAIM &40
+        RTS
+
+08      LDYIM 3
+        JSR   LILUp
+        STA   IaccH
+        DEY
+        JSR   LILUp
+        STA   IaccN
+        DEY
+        JSR   LILUp
+        TAX
+        DEY
+        JSR   LILUp
+        STA   IaccL
+        STX   IaccM
+        LDAIM &40
+        RTS
+
+VARONE  ROUT
+        LDA   LVud
+        BNE   #01
+        LDAIY IaccL
+        JMP   AYAcc
+
+01      JSR   LILUp
+        JMP   AYACC
+
+VARFP   LDA   LVud
+        BEQ   #09
+        LDY   IaccM
+        LDAAY DAT
+        CMPIM &BF
+        BEQ   #10
+        STA   IaccM
+        LDAAY OurRam
+        STA   &F4
+        STA   &FE30
+09      LDYIM 4
+        LDAIY IaccL
+        STA   FACCMD
+        DEY
+        LDAIY IaccL
+        STA   FACCMC
+        DEY
+        LDAIY IaccL
+        STA   FACCMB
+        DEY
+        LDAIY IaccL
+        STA   FACCS
+        DEY
+        LDAIY IaccL
+11      STA   FACCX
+        STY   FACCMG
+        STY   FACCXH
+        ORA   FACCS
+        ORA   FACCMB
+        ORA   FACCMC
+        ORA   FACCMD
+        BEQ   #02
+        LDA   FACCS
+        ORAIM &80
+02      STA   FACCMA
+        LDAIM &FF
+        RTS
+
+10      LDYIM 4
+        JSR   LILUp
+        STA   FACCMD
+        DEY
+        JSR   LILUp
+        STA   FACCMC
+        DEY
+        JSR   LILUp
+        STA   FACCMB
+        DEY
+        JSR   LILUp
+        STA   FACCS
+        DEY
+        JSR   LILUp
+        JMP   #11
+
+
+CHRd    JSR   INTFAC
+        LDA   IaccL
+        JMP   SINSTR
+
+        LNK     Bas0E

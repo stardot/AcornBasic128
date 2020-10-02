@@ -1,0 +1,306 @@
+        TTL     > Bas0B - SIN, COS, EXP
+
+
+COS  JSR FLTFAC
+     JSR FRANGE ; REDUCE TO <PI/2
+     INC FQUAD ; QUADRANT COUNTER
+     JMP FSC ; COMMON CODE
+SIN  JSR FLTFAC
+     JSR FRANGE
+FSC  LDA FQUAD
+     ANDIM &02
+     BEQ FSCA
+     JSR FSCA
+     JMP FNEG
+FSCA LSR FQUAD
+     BCC FSCB ; 1ST OR 2ND (+VE)
+     JSR FSCB
+SQRONE JSR STARGA ; SQR(1-ACC^2)
+     JSR FMUL
+     JSR FSTA
+     JSR FONE
+     JSR FSUB
+     JMP FSQRT
+FSCB JSR STARGC
+     JSR FMUL
+     LDAIM FSINC
+     LDYIM :MSB: FSINC
+     JSR FCF  ; EVALUATE APPROXIMATION
+     JMP ACMUL ; X*(SIN(X)/X)
+
+;  FRANGE SUBTRACTS AN INTEGRAL
+;   MULTIPLE OF PI/2 FROM ACC,
+;   AND SETS FQUAD TO INDICATE
+;   (MOD 4, AT LEAST) WHAT THE
+;   INTEGER WAS. NOTE THAT THE
+;   SUBTRACTION IS DONE WITH A
+;   CERTAIN DEGREE OF CARE SO THAT
+;   LARGE ARGUMENTS STILL GIVE
+;   DECENT ACCURACY.
+
+FRANGE LDA FACCX
+     CMPIM &98
+     BCS FRNGQQ  ; ARG TOO BIG
+     JSR STARGA ; save arg away
+     JSR ARGHPI  ; PI/2
+     JSR FLDW
+     LDA FACCS
+     STA FWRKS
+     DEC FWRKX ; PI/4*SGN(INPUT)
+     JSR FADDW
+     JSR FDIV
+
+;   NOTE THAT THE ABOVE DIVISION
+;   ONLY HAS TO GET ITS RESULT
+;   ABOUT RIGHT TO THE NEAREST
+;   INTEGER.
+
+     JSR FFIX  ; TAKE INTEGER PART
+     LDA FACCMD ; L.S. BYTE OF ACC
+     STA FQUAD
+     ORA FACCMC
+     ORA FACCMB
+     ORA FACCMA
+     BEQ FRNGD ; FIX(A/(PI/2))=0
+     LDAIM &A0
+     STA FACCX
+     LDYIM &00
+     STY FACCMG
+     LDA FACCMA
+     STA FACCS
+     BPL FFLOTA
+     JSR FINEG
+FFLOTA JSR FNRM
+     JSR STARGB
+     JSR AHPIHI
+     JSR FMUL
+     JSR ARGA
+     JSR FADD
+     JSR FSTA
+     JSR ARGB
+     JSR FLDA
+     JSR AHPILO
+     JSR FMUL
+     JSR ARGA
+     JMP FADD
+FRNGD JMP LDARGA
+
+FRNGQQ BRK
+     = &17
+     = "Accuracy lost"
+     BRK
+
+AHPIHI LDAIM HPIHI
+     BNE AHPILO+2
+
+AHPILO LDAIM HPILO
+     STA ArgP
+     LDAIM :MSB: HPILO
+     STA ArgP+1
+     LDAIM 0
+     STA ArgP+2
+     RTS
+
+ARGHPI LDAIM HALFPI
+     BNE AHPILO+2
+
+      ASSERT :MSB:HalfPi = :MSB: HPiHi
+
+HPIHI = &81
+      = &C9
+      = &10
+      = &00
+      = &00
+HPILO = &6F
+      = &15
+      = &77
+      = &7A
+      = &61
+HALFPI = &81
+      = &49
+      = &0F
+      = &DA
+      = &A2
+
+;  HPIHI+HPILO = -PI/2
+;  DONE THIS WAY FOR ACCURACY
+;  TO 1.5 PRECISION APPROX.
+
+FPIs18 = &7B
+     = &0E
+     = &FA
+     = &35
+     = &12
+F180sP = &86
+     = &65
+     = &2E
+     = &E0
+     = &D3
+RPLN10 = &7F
+     = &5E
+     = &5B
+     = &D8
+     = &AA
+
+;   FEXP ALGORITHM:
+;   (A) IF ABS(ARG) > 89.5 (APPROX)
+;     THEN GIVE UNDER/OVERFLOW.
+;   (B) LET P=NEAREST INTEGER
+;       TO ARG, AND F BE RESIDUE.
+;     (IF ABS(X)<0.5 TO START
+;     WITH COMPUTE THIS QUICKLY)
+;   (C) COMPUTE EXP(P) AS POWER
+;       OF E=2.71828...
+;   (D) NOTE ABS(F)<=0.5
+;       COMPUTE EXP(F) BY C.F.
+;   (E) COMBINE PARTIAL RESULTS
+
+EXP JSR FLTFAC
+FEXP LDA FACCX
+     CMPIM &87
+     BCC FEXPA ; CERTAINLY IN RANGE
+     BNE FEXPB ; CERTAINLY NOT
+     LDY FACCMA
+     CPYIM &B3
+     BCC FEXPA ; IN RANGE, AT LEAST NEARLY
+FEXPB LDA FACCS
+     BPL FEXPC ; OVERFLOW CASE
+     JSR FCLR  ; RETURN ZERO
+     LDAIM &FF
+     RTS
+
+FEXPC BRK
+     = &18
+     = "Exp range"
+     BRK
+
+FEXPA JSR FFRAC ; GET FRACTIONAL PART
+     JSR FEXPS  ; EXP(FRACTION)
+     JSR STARGC ; save it away
+     LDAIM FNUME
+     STA ArgP
+     LDAIM :MSB: FNUME
+     STA ArgP+1 ; argp+2 still downstairs
+     JSR FLDA
+     LDA FQUAD
+     JSR FIPOW ; X**N
+ACMUL JSR ARGC
+     JSR FMUL
+     LDAIM &FF
+     RTS
+
+FEXPS LDAIM FEXPCO
+     LDYIM :MSB: FEXPCO
+     JSR FCF ; SUM CONTINUED FRACTION
+     LDAIM &FF
+     RTS
+
+FSINC = &05
+     = &84  ; -8.68
+     = &8A
+     = &EA
+     = &0C
+     = &1B
+     = &84 ; 9.67
+     = &1A
+     = &BE
+     = &BB
+     = &2B
+     = &84 ; 11.45
+     = &37
+     = &45
+     = &55
+     = &AB
+     = &82 ; -3.33
+     = &D5
+     = &55
+     = &57
+     = &7C
+     = &83 ; -6
+     = &C0
+     = &00
+     = &00
+     = &05
+     = &81 ; 1
+     = &00
+     = &00
+     = &00
+     = &00
+
+ ASSERT :MSB: . = :MSB: FSinc
+
+FNUME = &82 ; 2.71828...
+     = &2D
+     = &F8
+     = &54
+     = &58
+FEXPCO = &07
+     = &83
+     = &E0
+     = &20
+     = &86
+     = &5B ; -7.004
+     = &82
+     = &80
+     = &53
+     = &93
+     = &B8 ; -2.005
+     = &83
+     = &20
+     = &00
+     = &06
+     = &A1 ; 5.0
+     = &82
+     = &00
+     = &00
+     = &21
+     = &63 ; 2.0
+     = &82
+     = &C0
+     = &00
+     = &00
+     = &02 ; -3.0
+     = &82
+     = &80
+     = &00
+     = &00
+     = &0C ; -2.0
+     = &81
+     = &00
+     = &00
+     = &00
+     = &00 ; 1.0
+     = &81
+     = &00
+     = &00
+     = &00
+     = &00 ; 1.0
+
+ ASSERT :MSB: fexpco = :MSB: .
+
+;   FIPOW COMPUTES X**N
+;   WHERE X IS PASSED IN
+;   F.P. ACC, N IS A ONE BYTE
+;   SIGNED INTEGER PASSED IN A
+
+FIPOW TAX
+     BPL FIPOWA ; +VE POWER
+     DEX
+     TXA
+     EORIM &FF ; 2'S COMPLEMENT ACC
+     PHA
+     JSR FRECIP
+     PLA ; RECOVER EXPONENT
+FIPOWA PHA
+     JSR STARGA
+     JSR FONE
+FIPOWB PLA
+     BEQ FIPOWZ ; EXIT CONDITION
+     SEC
+     SBCIM &01
+     PHA
+     JSR FMUL
+     JMP FIPOWB
+FIPOWZ RTS
+
+     LNK     BAS0C

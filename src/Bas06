@@ -1,0 +1,888 @@
+        TTL     > Bas06 support routines, if
+
+;   LOOKUP is given a base address-1 in Work,Work+1 length+1 in Work+2
+;   It returns with EQ set if it can't find the thing, else with
+;   IaccL,M pointing to the data item and NEQ.
+; The data is stored  realAddrLo,RAHi,LatchVal,"namebits",0,PseudoAddrHi,value
+
+LOOKFN  ROUT
+        LDY   Work+1
+        LDA   UpDown
+        BEQ   #30
+        LDAAY DAT
+        CMPIM &BF
+        BEQ   #11
+        STA   PPtr+1
+        LDA   Work
+        STA   PPtr
+        LDAAY OurRam
+        STA   &F4
+        STA   &FE30
+11      STA   LookCrit
+        LDYIM &01
+        LDA   LookCrit
+        BPL   #12
+        JSR   LWrkIY
+        =     &2C
+12      LDAIY PPtr
+        LDYIM &7C     ; &F6/2
+        CMPIM TPROC
+        BEQ   #05
+        LDYIM &7D     ; &F8/2
+        BNE   #05
+
+30      LDAIM &FF
+        BNE   #11
+
+31      LDAIM &FF
+        BNE   #14
+
+LOOKUP  LDY   Work+1
+        LDA   UpDown
+        BEQ   #31
+        LDAAY DAT
+        CMPIM &BF
+        BEQ   #14
+        STA   PPtr+1
+        LDA   Work
+        STA   PPtr
+        LDAAY OurRam
+        STA   &F4
+        STA   &FE30
+14      STA   LookCrit
+        LDYIM &01
+        LDA   LookCrit
+        BPL   #15
+        JSR   LWrkIY
+        =     &2C
+15      LDAIY PPtr
+        TAY
+        STX   Work+6    ; save X
+05      LDAAY VarLat-&40
+        STA   Work+5
+        TYA
+        ASLA
+        TAY
+        LDAAY Varptr-&80
+        STA   Work+3
+        LDAAY Varptr-&7F
+        BEQ   #01               ; no link - jack it in.
+        STA   Work+4
+06      LDYIM 2
+02      LDA   LookCrit
+        BPL   #08
+        JSR   LWrkIY
+        JMP   #09
+
+08      STA   &F4
+        STA   &FE30
+        LDAIY PPtr
+09      LDX   Work+5            ; select symtab bank
+        STX   &F4
+        STX   &FE30
+        INY
+        CMPIY Work+3
+        BEQ   #02
+        LDAIY Work+3
+        BNE   #03
+        DEY                     ; step back to terminating prog ch
+        DEY                     ; and a fudge one
+        CPY   Work+2
+        BEQ   #04               ; found it
+03      LDYIM 2
+        LDAIY Work+3
+        STA   Work+5
+        DEY
+        LDAIY Work+3
+        BEQ   #01               ; no link
+        TAX
+        DEY
+        LDAIY Work+3
+        STA   Work+3
+        STX   Work+4
+        JMP   #06
+
+04      INY                     ; back up to get PsAddrHi
+        INY
+        INY
+        TYA                     ; note CS  here
+        ADC   Work+3
+        STA   IaccL
+        LDAIY Work+3
+        ADCIM 0
+        STA   IaccM
+        TYA                     ; set NEQ
+01      LDX   Work+6            ; put X back
+        TAY                     ; reset EQ/NEQ
+        RTS
+
+;   CREATE takes the same parameters as LOOKUP and adds the
+;   data item to the linked list. It is not optimised.
+
+CREAFN  ROUT
+        LDYIM &01
+        JSR   LWrkIY
+        TAX
+        LDYIM &7C     ; &F6/2
+        CPXIM TPROC
+        BEQ   #04
+        LDYIM &7D
+        BNE   #04
+
+CREATE  LDYIM &01
+        JSR   LWrkIY
+        TAY
+04      LDAAY VarLat-&40
+        STA   Work+5
+        TYA
+        ASLA
+        TAY
+        LDAAY VarPtr-&80
+        STA   Work+3
+        LDAAY VarPtr-&7F
+        BEQ   #01               ; no link
+        TAX
+        LDYIM 1
+02      STX   Work+4
+        LDA   Work+5
+        STA   &F4
+        STA   &FE30
+        LDAIY Work+3
+        BEQ   #03               ; end of chain
+        TAX
+        INY
+        LDAIY Work+3
+        STA   Work+5
+        LDYIM 0
+        LDAIY Work+3
+        STA   Work+3
+        INY
+        BNE   #02
+
+15      INY             ; name end
+        LDAIM 0
+        STAIY Work+5
+        LDA   Fsa+1     ; PsAHi
+        INY
+        STAIY Work+5
+        RTS
+
+03      LDX   Fsa+1
+        LDAAX DAT      ; first check that link+name fit in current bank
+        CMPIM &BF
+        BNE   #05       ; not last page so get in there
+        LDAIM 3         ; CS so effectively = 4
+        ADC   Fsa
+        BCS   #06
+        ADC   Work+2
+        BCC   #07       ; us got woom - reset A
+06      INX
+        BNE   #14
+        JMP   #08       ; we've wrapped! Panic!!
+
+14      STX   Fsa+1
+        LDAIM 0
+        STA   Fsa       ; step on to next bank
+        LDAIM &80       ; which starts at &8000
+05      STAIY Work+3    ; poke link - Y still 1
+        STA   Work+6
+        LDA   Fsa
+        DEY
+        STAIY Work+3
+        STA   Work+5
+        LDYIM 2
+        LDAAX OurRam
+        STAIY Work+3
+13      TAX
+        STA   &F4       ; step on to new node
+        STA   &FE30
+        LDAIM 0
+        DEY
+        STAIY Work+5    ; terminate chain
+        INY
+09      CPY   Work+2
+        BEQ   #16
+        BCS   #15       ; loop until >
+16      JSR   LWrkIY    ; copy name
+        STX   &F4       ; get our bank back
+        STX   &FE30
+        INY
+        STAIY Work+5
+        BNE   #09
+
+01      LDX   Fsa+1
+        LDAAX DAT      ; first check that link+name fit in current bank
+        CMPIM &BF
+        BNE   #10       ; not last page so get in there
+        LDAIM 3         ; CS so effectively = 4
+        ADC   Fsa
+        BCS   #11
+        ADC   Work+2
+        BCC   #12       ; us got woom - reset A
+11      INX
+        BEQ   #08       ; we've wrapped! Panic!!
+        STX   Fsa+1
+        LDAIM 0
+        STA   Fsa       ; step on to next bank
+        LDAIM &80       ; which starts at &8000
+10      STAAY VarPtr-&7F
+        STA   Work+6
+        LDA   Fsa
+        STAAY VarPtr-&80
+        STA   Work+5
+        TYA
+        LSRA
+        TAY
+        LDAAX OurRam
+        STAAY VarLat-&40
+        LDYIM 2
+        BNE   #13
+
+07      LDAIM &BF
+        BNE   #05
+
+12      LDAIM &BF
+        BNE   #10
+
+
+;   CREAX updates FSA on the assumtion that x-1 bytes are to be used
+;   Y contains next address offset, X bytes are zeroed
+;   If we run out of ram it resets the list end with the old
+;   pointer in Work+3
+
+CREAX   LDAIM &00 ; another entry point to do x-1 bytes
+CREZER  INY
+        JSR SFsaIY
+        DEX
+        BNE CREZER
+FSAPY   SEC
+        TYA
+        ADC FSA        ; carry is set
+        BCC CREATY
+        INC FSA+1
+CREATY  LDYIM 1        ;Fsa+2
+        CPY AeStkP+2
+        BCC CreatZ
+        BNE CreatD
+        LDY FSA+1
+        CPY AESTKP+1
+        BCC CREATZ
+        BNE CREATD
+        CMP AESTKP
+        BCC CREATZ
+CREATD  LDAIM 0
+        LDYIM 1
+        STAIY Work+3  ; terminate chain
+08      JMP ALLOCR
+
+CREATZ  STA FSA
+        RTS
+
+
+;   WORD reads a word for LOOKUP
+;   Characters A-Z, 0-9 _-z are allowed in a word.
+;   WORD increments X and Y as counter and pointer
+
+WORD    ROUT
+        LDYIM &01
+WORDLP  JSR LWrkIY
+        CMPIM "0"
+        BCC WORDDN
+        CMPIM "@"
+        BCS WORDNA
+        CMPIM ":"
+        BCS WORDDN
+        CPYIM &01
+        BEQ WORDDN   ; check no number on first character
+WORDNC  INX
+        INY
+        BNE WORDLP
+
+WORDNA  CMPIM "_"
+        BCS WORDNB
+        CMPIM "Z"+1
+        BCC WORDNC
+WORDDN  RTS
+
+WORDNB  CMPIM "z"+1
+        BCC WORDNC
+        RTS
+
+
+CRAELT  JSR CREAX
+CRAELV  JSR AELV
+        BNE LVRTS
+        BCS LVRTS
+        JSR CREATE
+        LDXIM 5
+        CPX IaccN
+        BEQ CRAELT
+        DEX
+        BNE CRAELT
+
+LVFD    CMPIM "!"
+        BEQ UNPLIN
+        CMPIM "$"
+        BEQ DOLL
+        EORIM "?"
+        BEQ UNIND
+        LDAIM &00
+        SEC
+LVRTS   RTS
+
+UNPLIN  LDAIM &04
+UNIND   PHA
+        INC AECUR
+        JSR INTFAC
+        JMP INSET
+
+DOLL    ROUT
+        INC AECUR
+        JSR INTFAC
+        LDAIM 0       ; $ is down unless we find different
+        STA IaccH
+        LDA IaccN
+        BNE #01
+        LDA IaccM
+        BEQ DOLLER
+        =   &2C         ; de BitAbs
+01      DECZ IaccH      ; set up
+        LDA  IaccH
+        STA  LVud
+        LDAIM &80
+        STA IaccN
+        SEC
+        RTS
+
+DOLLER  BRK
+        = &08
+        = "$ range",0
+
+05      LDAIM &FF
+        BNE   #04
+
+AELV    LDA LINE
+        STA AELINE
+        LDA LINE+1
+        STA AELINE+1
+        LDY CURSOR
+        DEY
+LVBLNK  STY AECUR
+        LDY AeLine+1
+        LDA UpDown
+        BEQ #05
+        LDAAY DAT
+        CMPIM &BF
+        BEQ  #04
+        STA  PPtr+1
+        LDA  AeLine
+        STA  PPtr
+        LDAAY OurRam
+        STA  &F4
+        STA  &FE30
+04      STA  LookCrit
+        LDY  AeCur
+06      INY
+        STY AECUR
+        LDA LookCrit
+        BPL #07
+        JSR LAeLnIY
+        =   &2C
+07      LDAIY PPtr
+        CMPIM " "
+        BEQ #06
+        BNE SamsEntry
+
+;   LV reads the l value of the current item if possible.
+
+;   For 64K Basic, it also returns an up/down indicator in LVud
+
+;   If it is a numeric lv then the carry will be clear [ !<factor>
+;    ?<factor> <variable>!<factor> <variable>?<factor> <word> <word>%
+;    <word>( <word>%( ] and IaccN will be 0 for byte, 4 for integer
+;    and 5 for a floating point variable
+
+;   If it is a string lv then the carry will be set [ $<factor>
+;    <word>$ <word>$( ] and IaccN will be 128 for $<factor> and >128
+;    otherwise.
+
+;   In both these cases IaccL,IaccM will be the address of the data
+;    byte(s) {or string control block} and there will be an NEQ status
+
+;   If there is an EQ status then if the carry is set it is silly
+;    else if the carry is clear it is not in the list.
+
+
+LVCONT  ROUT
+        STA MoveTY
+        STY PPtr2+1
+        LDY AeLine+1
+        LDA UpDown
+        BEQ #05
+        LDAAY DAT
+        CMPIM &BF
+        BEQ  #04
+        STA  PPtr+1
+        LDA  AeLine
+        STA  PPtr
+        LDAAY OurRam
+        STA  &F4
+        STA  &FE30
+04      STA  LookCrit
+        LDY  PPtr2+1
+        LDA  MoveTY
+SamsEntry
+        STA MoveTY
+        LDAIM 0
+        STA LVud ; assume resident integer unless proved otherwise
+        LDA MoveTY
+        CMPIM "@"
+        BCS #06
+        JMP LVFD ; probably not an lv but check for unary things
+                 ; this test also removes numeric first characters
+06      CMPIM "Z"+1
+        BCS MULTI
+        ASLA
+        ASLA
+        STA IaccL
+        LDAIM :MSB: VARL ; optimised address generation
+        STA IaccM
+        INY
+        LDA LookCrit
+        BPL #10
+        JSR LAeLnIY
+        =   &2C
+10      LDAIY PPtr
+        INY
+        CMPIM "%"
+        BNE MULTI
+        LDXIM &04
+        STX IaccN
+        LDA LookCrit
+        BPL #11
+        JSR LAeLnIY
+        =   &2C
+11      LDAIY PPtr
+        CMPIM "("
+        BEQ Multi
+        JMP CHKQUE
+
+05      LDAIM &FF
+        BNE   #04
+
+12      LDAIM &FF
+        BNE   #13
+
+MULTI   DEC LVud
+        LDXIM &05
+        STX IaccN
+        LDA AECUR
+        CLC
+        ADC AELINE
+        LDX AELINE+1
+        BCC BKTVNO
+        INX
+        CLC
+BKTVNO  SBCIM 0
+        STA Work
+        BCS BKTVNP
+        DEX
+BKTVNP  STX Work+1
+        LDA UpDown
+        BEQ #12
+        LDAAX DAT
+        CMPIM &BF
+        BEQ #13
+        STA PPtr+1
+        LDA Work
+        STA PPtr
+        LDAAX OurRam
+        STA &F4
+        STA &FE30
+13      STA LookCrit
+        LDX AECUR
+        LDYIM &01
+BKTVLP  LDA LookCrit
+        BPL #01
+        JSR LWrkIY
+        =   &2C
+01      LDAIY PPtr
+        CMPIM "A"
+        BCS BKTVA
+        CMPIM "0"
+        BCC BKTVE
+        CMPIM ":"
+        BCS BKTVE
+        INX
+        INY
+        BNE BKTVLP
+
+BKTVA   CMPIM "Z"+1
+        BCS BKTVB
+        INX
+        INY
+        BNE BKTVLP
+
+BKTVB   CMPIM "_"
+        BCC BKTVE
+        CMPIM "z"+1
+        BCS BKTVE
+        INX
+        INY
+        BNE BKTVLP
+
+BKTVE   DEY
+        BEQ BKTVFL
+        CMPIM "$"
+        BNE #07
+        JMP LVSTR
+
+07      CMPIM "%"
+        BNE BKTVF
+        DEC IaccN
+        INY
+        INX
+        INY
+        JSR LWrkIY
+        DEY
+BKTVF   STY Work+2
+        CMPIM "("
+        BNE #08
+        JMP BKTVAR
+
+08      JSR LOOKUP
+        BEQ BKTVFC
+        STX AECUR
+CHKPLI  LDY AECUR
+        LDA UpDown   ;        JSR LAeLnIY
+        BEQ #03
+        TYA
+        CLC
+        ADC AeLine
+        STA PPtr
+        LDA AeLine+1
+        ADCIM 0
+        TAY
+        LDAAY   OurRam
+        STAZ    &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA PPtr+1
+        LDYIM 0
+        LDAIY PPtr
+        LDY AeCur
+        =   &2C
+03      LDAIY AeLine
+CHKQUE  CMPIM "!"
+        BEQ BIPLIN
+        CMPIM "?"
+        BEQ BIQUER
+        CLC
+        STY AECUR
+        LDAIM &FF
+        RTS
+
+BKTVFL  LDAIM &00
+        SEC
+        RTS                 ; syntax
+
+BKTVFC  LDAIM &00
+        CLC
+        RTS                 ; unknown
+
+BIQUER  ROUT
+        LDAIM &00
+        BEQ #01
+
+BIPLIN  LDAIM &04
+01      PHA
+        INY
+        STY AECUR
+        JSR VARIND
+        JSR INTEGB
+        LDA IaccN
+        PHA
+        LDA IaccM
+        PHA
+        LDA IaccL
+        PHA
+        JSR INTFAC
+        CLC
+        PLA
+        ADC IaccL
+        STA IaccL
+        PLA
+        ADC IaccM
+        STA IaccM
+        PLA
+        ADC IaccN
+        STA IaccN
+INSET   LDA IaccN       ; common processing for !,?
+        BEQ #02
+        LDAIM &FF
+02      STA LVud
+        PLA
+        STA IaccN
+        CLC
+        LDAIM &FF
+        RTS
+
+BKTVAR  INX
+        INC Work+2
+        JSR ARRAY
+        JMP CHKPLI
+
+LVSTR   INX
+        INY
+        STY Work+2
+        INY
+        DEC IaccN
+        JSR LWrkIY
+        CMPIM "("
+        BEQ LVSTRA
+        JSR LOOKUP
+        BEQ BKTVFC
+        STX AECUR
+        LDAIM &81
+        STA IaccN
+        SEC
+        RTS
+
+LVSTRA  INX
+        STY Work+2
+        DEC IaccN
+        JSR ARRAY
+        LDAIM &81
+        STA IaccN
+        SEC
+        RTS
+
+UNARRY  BRK
+        = &0E
+        = "Array",0
+
+ARRAY   JSR LOOKUP      ; lookup array name
+        BEQ UNARRY
+        STX AECUR
+        LDA IaccN
+        PHA
+        LDA IaccL
+        PHA
+        LDA IaccM
+        PHA
+        LDYIM &00
+        JSR LILUp
+        CMPIM &04
+        BCC AQUICK
+        TYA
+        JSR SINSTK
+        LDAIM &01
+        STA IaccH
+ARLOP   JSR PHACC
+        JSR INEXPR
+        INC AECUR
+        CPXIM ","
+        BNE UNARRY
+        LDXIM Work+2
+        JSR POPX
+        LDY Work+5
+        PLA
+        STA Work+1
+        PLA
+        STA Work
+        PHA
+        LDA Work+1
+        PHA
+        JSR TSTRNG
+        STY IaccH
+        JSR LWUpIY
+        STA Work+8
+        INY
+        JSR LWUpIY
+        STA Work+9
+        LDA IaccL
+        ADC Work+2
+        STA IaccL
+        LDA IaccM
+        ADC Work+3
+        STA IaccM
+        JSR WMUL
+        LDYIM &00
+        JSR LWUpIY
+        SEC
+        SBC IaccH
+        CMPIM &03
+        BCS ARLOP
+        JSR PHACC
+        JSR BRA
+        JSR INTEGB
+        PLA
+        STA Work+1
+        PLA
+        STA Work
+        LDXIM Work+2
+        JSR POPX
+        LDY Work+5
+        JSR TSTRNG
+        CLC
+        LDA Work+2
+        ADC IaccL
+        STA IaccL
+        LDA Work+3
+        ADC IaccM
+        STA IaccM
+        BCC ARFOUR
+AQUICK  JSR BRA
+        JSR INTEGB
+        PLA
+        STA Work+1
+        PLA
+        STA Work
+        LDYIM &01
+        JSR TSTRNG
+ARFOUR  PLA
+        STA IaccN
+        CMPIM &05
+        BNE ARFO
+        LDX IaccM
+        LDA IaccL
+        ASL IaccL
+        ROL IaccM
+        ASL IaccL
+        ROL IaccM
+        ADC IaccL
+        STA IaccL
+        TXA
+        ADC IaccM
+        STA IaccM
+        BCC ARFI     ; always
+
+ARFO    ASL IaccL
+        ROL IaccM
+        ASL IaccL
+        ROL IaccM
+ARFI    TYA
+        ADC IaccL
+        STA IaccL
+        BCC NNINC
+        INC IaccM
+        CLC
+NNINC   LDA Work
+        ADC IaccL
+        STA IaccL
+        LDA Work+1
+        ADC IaccM
+        STA IaccM
+        LDAIM &FF
+        STA LVud        ; arrays are always Up
+        RTS
+
+TSTRNG  LDA IaccM
+        ANDIM &C0
+        ORA IaccN
+        ORA IaccH
+        BNE SUBSCP
+        JSR LWUpIY
+        STA PPtr2+1
+        LDA IaccL
+        CMP PPtr2+1
+        INY
+        PHP
+        JSR LWUpIY
+        STA PPtr2+1
+        PLP
+        LDA IaccM
+        SBC PPtr2+1
+        BCS SUBSCP
+        INY
+        RTS
+
+SUBSCP  BRK
+        = &0F,"Subscript",0
+
+SPTSTN  ROUT   ; fetches a 2 byte constant using line
+        LDA UpDown
+        BEQ #01
+        LDY Line+1
+        LDAAY DAT
+        CMPIM &BF
+        BEQ #02
+        STA PPtr+1
+        LDA Line
+        STA PPtr
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+02      STA LookCrit
+        =   &2C
+SPTSTM  INC CURSOR
+        LDY CURSOR
+        LDA LookCrit
+        BPL #03
+        JSR LLinIY
+        =  &2C
+03      LDAIY PPtr
+        CMPIM " "
+        BEQ SPTSTM
+        CMPIM TCONST
+        BEQ #04
+        JMP FDA
+
+01      LDAIM &FF
+        BNE   #02
+
+SPGETN  STY MoveTY
+        LDA UpDown
+        BEQ #09
+        LDY Line+1
+        LDAAY DAT
+        CMPIM &BF
+        BEQ #08
+        STA PPtr+1
+        LDA Line
+        STA PPtr
+        LDAAY OurRam
+        STA &F4
+        STA &FE30
+08      STA LookCrit
+        LDY MoveTY
+04      INY
+        LDA LookCrit
+        BPL #05
+        JSR LLinIY
+        =   &2C
+05      LDAIY PPtr
+        ASLA
+        ASLA
+        TAX
+        ANDIM &C0
+        INY
+        STA MoveTY+1
+        LDA LookCrit
+        BPL #06
+        JSR LLinIY
+        =   &2C
+06      LDAIY PPtr
+        EOR MoveTY+1
+        STA IaccL
+        TXA
+        ASLA
+        ASLA
+        INY
+        STA MoveTY+1
+        LDA LookCrit
+        BPL #07
+        JSR LLinIY
+        =   &2C
+07      LDAIY PPtr
+        EOR MoveTY+1
+        STA IaccM
+        INY
+        STY CURSOR
+        SEC
+        RTS
+
+09      LDAIM &FF
+        BNE   #08
+
+        LNK     Bas07
