@@ -1,73 +1,226 @@
         TTL > Bas10 Acronsfot bits - MyOsfile etc
 
-MyOsFile ROUT   ; take a standard osfile block and GBPB instead
-                ; BUT addr (will) refer to our 64K chunk
-                ; AND its always to the block address, not the files'.
+SAVE    ROUT
+        JSR     ENDER
+        JSR     OSTHIG
+        STX     Work+8
+        STY     Work+9
+        STX     Work+12
+        STY     Work+13
+        STX     Work+16
+        STY     Work+17
+        STA     Work+10
+        LDX     TOP
+        STX     Work+14
+        LDX     TOP+1
+        STX     Work+15
+        LDXIM   0
+        STX     Work+6
+        LDXIM   &31
+        STX     Work+7
+        LDX     TXTP
+        STX     Work+11
+        TAY
+        LDXIM   Work
+        JSR     MyOsfile
+        JMP     NXT
 
+LOAD    ROUT
+        JSR     LOADER
+        JMP     FSASET
+
+CHAIN   ROUT
+        JSR     LOADER
+        JMP     RUNNER
+
+LPTR    ROUT
+        JSR     AECHAN
+        PHA
+        JSR     EQEXPR
+        JSR     INTEG
+        PLA
+        TAY
+        LDXIM   &2C
+        LDAIM   1
+        JSR     OSARGS
+        JMP     NXT
+
+EXT     ROUT
+        SEC
+RPTR    LDAIM   0
+        ROLA
+        ROLA
+        PHA
+        JSR     CHANN
+        LDXIM   &2C
+        PLA
+        JSR     OSARGS
+        LDAIM   &40
+        RTS
+
+BPUT    ROUT
+        JSR     AECHAN
+        PHA
+        JSR     COMEAT
+        JSR     EXPRDN
+        JSR     INTEG
+        PLA
+        TAY
+        LDA     IACC
+        JSR     OSBPUT
+        JMP     NXT
+
+BGET    ROUT
+        JSR     CHANN
+        JSR     OSBGET
+        JMP     SINSTK
+
+OPENU   ROUT
+        LDAIM   &40
+        BNE     #01
+OPENO   LDAIM   &80
+        BNE     #01
+OPENI   LDAIM   &C0
+01      PHA
+        JSR     FACTOR
+        BNE     #02
+        JSR     OSSTRT
+        GENAD   StrAcc
+        PLA
+        JSR     OsFind
+        JMP     SINSTK
+02      JMP     LETM
+
+CLOSE   ROUT
+        JSR     AECHAN
+        JSR     AEDONE
+        LDY     IACC
+        LDAIM   0
+        JSR     OsFind
+        JMP     NXT
+
+AECHAN  ROUT
+        LDA     CURSOR
+        STA     AECUR
+        LDA     LINE
+        STA     AELINE
+        LDA     LINE+1
+        STA     AELINE+1
+CHANN
+        JSR     AESPAC
+        CMPIM   "#"
+        BNE     MISSING_HASH
+        JSR     INTFAC
+        LDY     IACC
+        TYA
+        RTS
+
+VSTRNG  ROUT
+        PLA
+        STA     Work
+        PLA
+        STA     Work+1
+        LDYIM   0
+        BEQ     #02
+01      JSR     OSASCI
+02      JSR     GETWK2
+        CMPIM   0
+        BPL     #01
+        JMI     Work
+
+REPORT  ROUT
+        JSR     DONE
+        JSR     NLINE
+        LDYIM   1
+01      LDAAY   BrkMS
+        BEQ     #02
+        JSR     TOKOUT
+        INY
+        BNE     #01
+02      JMP     NXT
+
+MISSING_HASH
+        BRK
+        =       &2D
+        =       "Missing #"
+        BRK
+
+MyOsfile ROUT
         CMPIM   0
         BEQ     MySave
+        CMPIM   &FF
+        BEQ     MyLoad
+01      JMP     OSFILE
 
-        LDAIM   &40     ; MyLoad
+MyLoad  LDA     MOVAD
+        BNE     #02
+        LDA     MODE
+        CMPIM   1
+        BEQ     #03
+02      LDAIM   &FF
+        BNE     #01
+03      LDAIM   &40
         JSR     MyFind
-
-05      LDA     work+2          ; my ptr for writing to SRAM
-        STA     work
+04      LDA     Work+2
+        STA     Work
         LDA     Work+3
         JSR     SamCvt
         STA     Work+1
-
         LDXIM   0
         STX     GbpbBlk+5
         INX
-        STX     GbpbBlk+6  ; transfer 256 bytes
-        LDAIM   4          ; read
+        STX     GbpbBlk+6
+        LDAIM   4
         JSR     DoGbPb
-
         LDA     GbpbBlk+6
-        BNE     #04     ; no bytes got
+        BNE     #06
         LDA     GbpbBlk+5
         EORIM   &FF
         TAY
         INY
-03      LDAAY   GbBuff
+05      LDAAY   GbBuff
         STAIY   Work
         DEY
-        BNE     #03
+        BNE     #05
         LDA     GbBuff
-        STAIY   Work  ; byte 0 of non-full block
-
+        STAIY   Work
         LDA     GbpbBlk+5
-        BNE     #04
+        BNE     #06
         INC     Work+3
-        BNE     #A05    ; always - I hope!
-
-04      LDY     GbpbBlk
+        BNE     #04
+06      LDY     GbpbBlk
         LDAIM   0
         JMP     OsFind
 
-MySave  LDAIM   &80     ; only 2 bytes of length used
+MySave  LDA     Work+12
+        CMPIM   1
+        BEQ     #07
+        LDAIM   0
+        BEQ     #01
+
+07      LDAIM   &80
         JSR     MyFind
 
-06      LDA     Work+&B ; start
-        CMP     Work+&F ; end
-        BEQ     #08
-        LDYIM   0       ; do 256
+08      LDA     Work+11
+        CMP     Work+15
+        BEQ     #09
+        LDYIM   0
         LDXIM   1
         BNE     #11
 
-08      SEC
-        LDA     Work+&E
-        SBC     Work+&A ; no left to move
-        BEQ     #04     ; none
+09      SEC
+        LDA     Work+14
+        SBC     Work+10
+        BEQ     #06
         TAY
-        LDA     Work+&A
-        STA     Work+&E ; force exit next time
+        LDA     Work+10
+        STA     Work+14
         LDXIM   0
-11      STY     GbPbBlk+5
-        STX     GbPbBlk+6
-        LDA     Work+&A
+11      STY     GbpbBlk+5
+        STX     GbpbBlk+6
+        LDA     Work+10
         STA     Work
-        LDA     Work+&B
+        LDA     Work+11
         JSR     SamCvt
         STA     Work+1
 13      LDAIY   Work
@@ -77,12 +230,12 @@ MySave  LDAIM   &80     ; only 2 bytes of length used
         LDAIY   Work
         STA     GbBuff
         LDA     GbpbBlk+5
-        BNE     #14    ; dont step on a page if this is the last block
-        INC     Work+&B
+        BNE     #14
+        INC     Work+11
 
 14      LDAIM   2
         JSR     DoGbPb
-        JMP     #06
+        JMP     #08
 
 DoGbPb  ROUT
         GENAD   GbBuff
@@ -95,8 +248,7 @@ DoGbPb  ROUT
         STX     GbpbBlk+7
         STX     GbpbBlk+8
         GENAD   GbpbBlk
-        JMP     OsGbPb
-
+        JMP     OSGBPB
 
 MyFind  LDX     Work
         LDY     Work+1
@@ -111,307 +263,263 @@ MyFind  LDX     Work
         =       "Not Found"
         BRK
 
-
-
-; In : hi byte of ptr in A. Pages in SRAM corr. to bits 7,6 from trt
-
-; Out : A = new hi bye of ptr, in range &80 - &BF
-
 SamCvt  ROUT
         TAX
-        LDAAX   OurRam ; grab slotno
-        STAZ    &F4
+        LDAAX   OurRam
+        STA     &F4
         STA     &FE30
-        LDAAX   DAT     ; replaces ANDIM &3F ; ORAIM &80
+        LDAAX   DAT
         RTS
 
 SamYCvt TAY
         LDAAY   OurRam
-        STAZ    &F4
+        STA     &F4
         STA     &FE30
         LDAAY   DAT
         RTS
 
-TOPcvt  ROUT     ; destroys X and A
-        LDA TOP
-        STA PPTR
-        LDA TOP+1
-        JSR SamCvt
-        STA PPTR+1
+TOPcvt  ROUT    ; destroys X and A
+        LDA     TOP
+        STA     PPTR
+        LDA     TOP+1
+        JSR     SamCvt
+        STA     PPTR+1
         RTS
 
-PhaTs   ROUT   ; push byte in A to (AeStkP),Y
-        STY MoveTY
+PhaTs   ROUT    ; push byte in A to (AeStkP),Y
+        STY     MoveTY
         PHA
         TYA
         CLC
-        ADC AeStkP
-        STA PPtr
-        LDA AeStkP+1
-        ADCIM 0
+        ADC     AeStkP
+        STA     PPTR
+        LDA     AeStkP+1
+        ADCIM   0
         TAY
         LDAAY   OurRam
-        STAZ    &F4
+        STA     &F4
         STA     &FE30
         LDAAY   DAT
-        STA PPtr+1
-        LDYIM 0
+        STA     PPTR+1
+        LDYIM   0
         PLA
-        STAIY PPtr
-        LDYZ MoveTY
+        STAIY   PPTR
+        LDY     MoveTY
         RTS
 
-PlaFs   ROUT   ; pop byte into A from (AeStkP),Y
-        STY MoveTY
+PlaFs   ROUT    ; pop byte into A from (AeStkP),Y
+        STY     MoveTY
         TYA
         CLC
-        ADC AeStkP
-        STA PPtr
-        LDA AeStkP+1
-        ADCIM 0
+        ADC     AeStkP
+        STA     PPTR
+        LDA     AeStkP+1
+        ADCIM   0
         TAY
         LDAAY   OurRam
-        STAZ    &F4
+        STA     &F4
         STA     &FE30
         LDAAY   DAT
-        STA PPtr+1
-        LDYIM 0
-        LDAIY PPtr
-        LDYZ MoveTY
+        STA     PPTR+1
+        LDYIM   0
+        LDAIY   PPTR
+        LDY     MoveTY
         RTS
 
 LWrkIY  ROUT
-        LDA UpDown
-        BEQ #01
-LWUpIY  STY MoveTY
+        LDA     UpDown
+        BEQ     #01
+LWUpIY  STY     MoveTY
         TYA
         CLC
-        ADC Work
-        STA PPtr
-        LDA Work+1
-lcom    ADCIM 0
-        JSR SamYCvt
-        STA PPtr+1
-        LDYIM 0
-        LDAIY PPtr
-        LDY MoveTY
-        STA MoveTY
-        LDA MoveTY   ; set flags
+        ADC     Work
+        STA     PPTR
+        LDA     Work+1
+        ADCIM   0
+        TAY
+        LDAAY   OurRam
+        STA     &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA     PPTR+1
+        LDYIM   0
+        LDAIY   PPTR
+        LDY     MoveTY
         RTS
-01      LDAIY Work
+01      LDAIY   Work
         RTS
 
 LLinIY  ROUT
-        LDA UpDown
-        BEQ #01
-        STY MoveTY
+        LDA     UpDown
+        BEQ     #01
+LLUpIY  STY     MoveTY
         TYA
         CLC
-        ADC Line
-        STA PPtr
-        LDA Line+1
-        JMP Lcom
-01      LDAIY Line
+        ADC     LINE
+        STA     PPTR
+        LDA     LINE+1
+Lcom    ADCIM   0
+        TAY
+        LDAAY   OurRam
+        STA     &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA     PPTR+1
+        LDYIM   0
+        LDAIY   PPTR
+        LDY     MoveTY
+        RTS
+01      LDAIY   LINE
         RTS
 
-LWp4IY  ROUT
-        LDA UpDown
-        BEQ #01
-        STY MoveTY
+LWp4UpIY ROUT
+        STY     MoveTY
         TYA
         CLC
-        ADC Work+4
-        STA PPtr
-        LDA Work+5
-        JMP lcom
-01      LDAIY Work+4
-        RTS
-        
+        ADC     MODE
+        STA     PPTR
+        LDA     CONSTA
+        JMP     Lcom
+
 LAeLnIY ROUT
-        LDA UpDown
-        BEQ #01
-        STY MoveTY
+        LDA     UpDown
+        BEQ     #01
+        STY     MoveTY
         TYA
         CLC
-        ADC AeLine
-        STA PPtr
-        LDA AeLine+1
-        JMP lcom
-01      LDAIY AeLine
+        ADC     AELINE
+        STA     PPTR
+        LDA     AELINE+1
+        ADCIM   0
+        TAY
+        LDAAY   OurRam
+        STA     &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA     PPTR+1
+        LDYIM   0
+        LDAIY   PPTR
+        LDY     MoveTY
         RTS
-        
+01      LDAIY   AELINE
+        RTS
 
 SWrkIY  ROUT
-        BITZ UpDown
-        BPL #01
-        PHA
-        STY MoveTY
+        BIT     UpDown
+        BPL     #01
+SWUpIY  PHA
+        STY     MoveTY
         TYA
         CLC
-        ADC Work
-        STA PPtr
-        LDA Work+1
-        JMP Scom
-01      STAIY Work
-        RTS
-
-SWp4IY  ROUT
-        BIT UpDown
-        BPL #01
-        PHA
-        STY MoveTY
-        TYA
-        CLC
-        ADC Work+4
-        STA PPtr
-        LDA Work+5
-Scom    ADCIM 0
-        JSR SamYCvt
-        STA PPtr+1
-        LDYIM 0
+        ADC     Work
+        STA     PPTR
+        LDA     Work+1
+        ADCIM   0
+        TAY
+        LDAAY   OurRam
+        STA     &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA     PPTR+1
+        LDYIM   0
         PLA
-        STAIY PPtr
-        LDY MoveTY
+        STAIY   PPTR
+        LDY     MoveTY
         RTS
-01      STAIY Work+4
-        RTS
-
-LApIY   ROUT
-        BIT ArgP+2
-        BPL #01
-        STY MoveTY
-        TYA
-        CLC
-        ADC ArgP
-        STA PPtr
-        LDA ArgP+1
-        JMP lcom
-01      LDAIY ArgP
+01      STAIY   Work
         RTS
 
-StApIY  ROUT
-        BIT ArgP+2
-        BPL #01
+SWp4UpIY ROUT
         PHA
-        STY MoveTY
+        STY     MoveTY
         TYA
         CLC
-        ADC ArgP
-        STA PPtr
-        LDA ArgP
-        JMP Scom
-01      STAIY ArgP
-        RTS
+        ADC     MODE
+        STA     PPTR
+        LDA     CONSTA
+        JMP     Scom
 
-LWp3IY  ROUT
-        LDA UpDown
-        BEQ #01
-LWp3UpIY        ; for heap stuff
-        STY MoveTY
+LWp5UpIY ROUT
+        STY     MoveTY
         TYA
         CLC
-        ADC Work+3
-        STA PPtr
-        LDA Work+4
-        JMP lcom
-01      LDAIY Work+3
-        RTS
-
-LWp5IY  ROUT
-        LDA UpDown
-        BEQ #01
-LWp5UpIY
-        STY MoveTY
-        TYA
-        CLC
-        ADC Work+5
-        STA PPtr
-        LDA Work+6
-        JMP lcom
-01      LDAIY Work+5
-        RTS
+        ADC     CONSTA
+        STA     PPTR
+        LDA     MOVAD
+        JMP     Lcom
 
 LILIY   ROUT
-        LDA UpDown
-        BEQ #01
-LILUp   STY MoveTY
+        LDA     UpDown
+        BEQ     #01
+LILUp   STY     MoveTY
         TYA
         CLC
-        ADC IaccL
-        STA PPtr
-        LDA IaccM
-        JMP lcom
-01      LDAIY IaccL
+        ADC     IACC
+        STA     PPTR
+        LDA     IACCM
+        ADCIM   0
+        TAY
+        LDAAY   OurRam
+        STA     &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA     PPTR+1
+        LDYIM   0
+        LDAIY   PPTR
+        LDY     MoveTY
+        STA     MoveTY
+        LDA     MoveTY
+        RTS
+01      LDAIY   IACC
         RTS
 
 SILIY   ROUT
-        BITZ UpDown
-        BPL #01
-SILUp   PHA
-        STY MoveTY
-        TYA
-        CLC
-        ADC IaccL
-        STA PPtr
-        LDA IaccM
-        JMP Scom
-01      STAIY IaccL
-        RTS
-
-SINIY   ROUT
-        BITZ UpDown
-        BPL #01
+        BIT     UpDown
+        BPL     #01
+SILUp
         PHA
-        STY MoveTY
+        STY     MoveTY
         TYA
         CLC
-        ADC IaccN
-        STA PPtr
-        LDA IaccH
-        JMP Scom
-01      STAIY IaccN
+        ADC     IACC
+        STA     PPTR
+        LDA     IACCM
+        ADCIM   0
+        TAY
+        LDAAY   OurRam
+        STA     &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA     PPTR+1
+        LDYIM   0
+        PLA
+        STAIY   PPTR
+        LDY     MoveTY
+        RTS
+01      STAIY   IACC
         RTS
 
-SWP3IY  ROUT
-        BITZ UpDown
-        BPL #01
-SWp3UpIY
+SFsaIY  ROUT
         PHA
-        STY MoveTY
+        STY     MoveTY
         TYA
         CLC
-        ADC Work+3
-        STA PPtr
-        LDA Work+4
-        JMP Scom
-01      STAIY Work+3
+        ADC     FSA
+        STA     PPTR
+        LDA     FSA+1
+Scom    ADCIM   0
+        TAY
+        LDAAY   OurRam
+        STA     &F4
+        STA     &FE30
+        LDAAY   DAT
+        STA     PPTR+1
+        LDYIM   0
+        PLA
+        STAIY   PPTR
+        LDY     MoveTY
         RTS
 
-SFsaIY  ROUT            ; note Fsa is always up
-        PHA
-        STY MoveTY
-        TYA
-        CLC
-        ADC Fsa
-        STA PPtr
-        LDA Fsa+1
-        JMP Scom
-01      STAIY Fsa
-        RTS
+        =    "DiswuzhackedaboutbySam&PMFatacro"
 
-SWp2IY  ROUT
-        BITZ UpDown
-        BPL #01
-        PHA
-        STY MoveTY
-        TYA
-        CLC
-        ADC Work+2
-        STA PPtr
-        LDA Work+3
-        JMP Scom
-01      STAIY Work+2
-        RTS
-
-        =       "DiswuzhackedaboutbySam&PMFatacronsfotlangwidjjies"
-        END  
+        END
