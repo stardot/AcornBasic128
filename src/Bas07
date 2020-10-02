@@ -1000,4 +1000,4 @@ TRJOBA  LDA IaccL
         JSR CHOUT
         JMP LISTPT
 
-        LNK     BAS08
+        LNK     Bas08

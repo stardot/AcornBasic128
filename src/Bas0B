@@ -303,4 +303,4 @@ FIPOWB PLA
      JMP FIPOWB
 FIPOWZ RTS
 
-     LNK     BAS0C
+     LNK     Bas0C

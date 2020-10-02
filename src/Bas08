@@ -946,4 +946,4 @@ LApIY   STY MoveTY
         LDA ArgP+1
         JMP lcom
 
-        LNK     BAS09
+        LNK     Bas09

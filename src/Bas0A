@@ -335,4 +335,4 @@ FATANC = &09 ; SERIES LENGTH
 
  ASSERT :MSB: fatanc = :MSB: .
 
-      LNK     BAS0B
+      LNK     Bas0B

@@ -125,4 +125,4 @@ RNDOK   LDAIM :LSB: BREK
 
 DefRep  =       0,"(C) Acornsoft 1985, V1.11",0
 
-        LNK     BAS02
+        LNK     Bas02
