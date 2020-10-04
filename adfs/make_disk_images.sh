@@ -18,7 +18,7 @@ do
 
     # Start with blank/template disk image
     IMAGE=${PREFIX}.${SUFFIX}
-    
+
     cp BlankDisk.${SUFFIX} ${IMAGE}
 
     # Create a !boot file
@@ -28,7 +28,7 @@ do
     # Copy sources
     cp ../src/* tmp
     cp ${MAKE} tmp
-    
+
     # Convert line endings
     unix2mac -q tmp/*
 
@@ -40,7 +40,7 @@ do
     do
         cp ../tools/${name}     tmp
         cp ../tools/${name}.inf tmp
-        afscp tmp/${name} ${IMAGE}:Library 
+        afscp tmp/${name} ${IMAGE}:Library
     done
 
     # Set a title
@@ -53,4 +53,3 @@ do
     afstree ${IMAGE}
 
 done
-
