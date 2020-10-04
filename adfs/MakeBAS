@@ -1,0 +1,29 @@
+*|> MakeBAS
+*masm
+width 78
+length 127
+stop on
+asm BasVars
+
+asm Bas128
+
+*LOAD X.BasVars
+*LOAD X.Bas01
+*LOAD X.Bas02
+*LOAD X.Bas03
+*LOAD X.Bas04
+*LOAD X.Bas05
+*LOAD X.Bas06
+*LOAD X.Bas07
+*LOAD X.Bas08
+*LOAD X.Bas09
+*LOAD X.Bas0A
+*LOAD X.Bas0B
+*LOAD X.Bas0C
+*LOAD X.Bas0D
+*LOAD X.Bas0E
+*LOAD X.Bas0F
+*LOAD X.Bas10
+
+*SAVE X.BasObj 3000 +5000 3100
+*INFO X.BAS###
