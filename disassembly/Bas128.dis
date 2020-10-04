@@ -1,0 +1,427 @@
+cpu 65c02
+load $3000 Bas128.orig
+save Bas128.asm
+symbols Bas128.sym
+
+entry $3100
+
+byte $3138
+stringz $3139
+
+stringhi $3175
+entry pc
+
+stringhi $3193
+entry pc
+
+byte $31f5
+stringz $31f6
+
+
+;; Token Strings
+repeat 126
+stringhi pc
+byte pc 2
+endrepeat
+
+;; Token Addresses
+byte pc 114
+byte pc 114
+
+
+;; Assembler tables
+
+byte pc 58
+byte pc 58
+byte pc 56
+entry pc
+
+;; Errors
+
+byte $38cb
+stringz pc
+entry pc
+
+byte $38fb
+stringz pc
+entry pc
+
+byte $3943
+stringz pc
+entry pc
+
+byte $3984
+stringz pc
+entry pc
+
+byte $3a98
+stringz pc
+entry pc
+
+byte $3d52
+stringz pc
+entry pc
+
+byte $3d7e 3
+entry pc
+
+byte $3e19
+stringz pc
+entry pc
+
+byte $3f10
+stringz pc
+entry pc
+
+byte $3ffa
+stringz pc
+entry pc
+
+byte $4248
+string pc 8
+byte pc 2
+entry pc
+
+byte $444b
+stringz pc
+entry pc
+
+byte $4454
+stringz pc
+entry pc
+
+stringhi $450b
+entry pc
+
+byte $45bd
+stringz pc
+entry pc
+
+byte $46c0
+stringz pc
+entry pc
+
+byte $482f
+stringz pc
+entry pc
+
+byte $4835
+stringz pc
+entry pc
+
+byte $4b48
+stringz pc
+entry pc
+
+byte $4d3a
+stringz pc
+entry pc
+
+byte $4e48
+stringz pc
+entry pc
+
+byte $4fce
+stringz pc
+byte pc 4
+entry pc
+
+byte $5226
+stringz pc
+entry pc
+
+byte $5558
+stringz pc
+byte pc
+stringz pc
+byte pc
+stringz pc
+entry pc
+
+byte $5f37
+stringz pc
+entry pc
+
+byte $6074
+stringz pc
+entry pc
+
+byte $60d7
+stringz pc
+entry pc
+
+byte $62fe
+stringz pc
+entry pc
+
+byte $635c
+stringz pc
+entry pc
+
+byte $6748
+stringz pc
+byte pc
+stringz pc
+byte pc
+stringz pc
+entry pc
+
+byte $6a3d
+stringz pc
+entry pc
+
+byte $6ace
+stringz pc
+entry pc
+
+byte $6c36
+stringz pc
+entry pc
+
+byte $7138
+stringz pc
+entry pc
+
+byte $7178
+stringz pc
+entry pc
+
+byte $72cf
+stringz pc
+byte pc
+stringz pc
+byte pc
+stringz pc
+entry pc
+
+byte $73e0
+stringz pc
+byte pc
+stringz pc
+entry pc
+
+byte $7454
+stringz pc
+entry pc
+
+byte $74d8
+stringz pc
+entry pc
+
+byte $7502
+stringz pc
+entry pc
+
+byte $771e
+stringz pc
+byte pc
+stringz pc
+entry pc
+
+byte $775b
+stringz pc
+entry pc
+
+byte $7897
+stringz pc
+entry pc
+
+stringhi $7be8
+entry pc
+
+byte $7d37
+stringz pc
+entry pc
+
+byte $7e28
+stringz pc
+entry pc
+
+string $7fe0 32
+
+
+;; Data tables
+
+byte $3149 4
+entry pc
+
+byte $4f38 5
+entry pc
+
+byte $613b 41
+entry pc
+
+byte $621f 51
+entry pc
+
+byte $6322 30
+entry pc
+
+byte $6393 62
+byte pc
+
+
+;; Basic Error Handler
+
+byte $6e6a 6
+string pc 9
+byte pc 10
+entry pc
+
+;; $2c to skip next 2-byte opcode (!!)
+
+byte $4916
+entry pc
+
+byte $4951
+entry pc
+
+byte $4b3a
+entry pc
+
+byte $4b8b
+entry pc
+
+byte $4bdc
+entry pc
+
+byte $4bef
+entry pc
+
+byte $4c41
+entry pc
+
+byte $4cb3
+entry pc
+
+byte $4e70
+entry pc
+
+byte $4e7c
+entry pc
+
+byte $4eb7
+entry pc
+
+byte $4ec9
+entry pc
+
+byte $4edd
+entry pc
+
+;; Entries from token table
+
+entry $7cbe
+entry $7c8d
+entry $67cc
+entry $682d
+entry $67fa
+entry $680d
+entry $6644
+entry $6199
+entry $6401
+entry $6535
+entry $619f
+entry $61cc
+entry $7cb5
+entry $6252
+entry $67f6
+entry $644b
+entry $6820
+entry $6826
+entry $646d
+entry $6340
+entry $7c8c
+entry $656a
+entry $6ad8
+entry $68f1
+entry $6544
+entry $65ba
+entry $6512
+entry $67e0
+entry $60cc
+entry $642f
+entry $640f
+entry $7cc6
+entry $7cc2
+entry $6452
+entry $6591
+entry $6420
+entry $6436
+entry $6878
+entry $6577
+entry $625d
+entry $607e
+entry $5f88
+entry $67af
+entry $655d
+entry $6459
+entry $64c6
+entry $6426
+entry $6dd6
+entry $68f7
+entry $695e
+entry $6904
+entry $6971
+entry $6926
+entry $69cc
+entry $69fa
+entry $6551
+entry $4537
+entry $4399
+entry $7c6a
+entry $7040
+entry $3d81
+entry $3d5d
+entry $440b
+entry $7c39
+entry $5560
+entry $7c76
+entry $474a
+entry $4790
+entry $4736
+entry $4704
+entry $6e83
+entry $7c9e
+entry $4283
+entry $7c70
+entry $4754
+entry $7cdf
+entry $426e
+entry $4275
+entry $3e4a
+entry $3e4a
+entry $45c4
+entry $487d
+entry $3d72
+entry $481f
+entry $6ea9
+entry $72ee
+entry $73c5
+entry $7409
+entry $483c
+entry $55fd
+entry $7594
+entry $3ee1
+entry $47ec
+entry $485c
+entry $4879
+entry $713e
+entry $745e
+entry $48c4
+entry $4886
+entry $414c
+entry $47cb
+entry $767d
+entry $3e4a
+entry $7768
+entry $7d20
+entry $7644
+entry $73f3
+entry $792c
+entry $3d7a
+entry $4850
+entry $475c
+entry $7735
+entry $6ed7
+entry $7c09
